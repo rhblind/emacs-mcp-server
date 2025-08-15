@@ -1,0 +1,40 @@
+{
+  "mcpServers": {
+    "emacs": {
+      "command": "socat",
+      "args": [
+        "-",
+        "UNIX-CONNECT:/tmp/mcp-server-primary.sock"
+      ],
+      "transport": "stdio",
+      "env": {
+        "EMACS_MCP_SOCKET": "/tmp/mcp-server-primary.sock"
+      }
+    }
+  }
+}
+
+// Alternative configuration for user-based naming:
+{
+  "mcpServers": {
+    "emacs": {
+      "command": "socat", 
+      "args": [
+        "-",
+        "UNIX-CONNECT:/tmp/mcp-server-$USER.sock"
+      ],
+      "transport": "stdio"
+    }
+  }
+}
+
+// Alternative using a wrapper script (recommended):
+{
+  "mcpServers": {
+    "emacs": {
+      "command": "/path/to/mcp-wrapper.sh",
+      "args": [],
+      "transport": "stdio"
+    }
+  }
+}
