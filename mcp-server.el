@@ -278,8 +278,14 @@ If DEBUG is non-nil, enable debug logging."
           (mcp-server--send-error id -32601 "Method not found" method client-id))))
     
     (error
+     (when mcp-server-debug
+       (message "MCP Debug: Main error handler - err=%S, message=%S" err message)
+       (message "MCP Debug: Message id=%S" (alist-get 'id message)))
      (mcp-server--error "Error handling message: %s" err)
-     (mcp-server--send-error (alist-get 'id message) -32603 "Internal error" (error-message-string err) client-id))))
+     (condition-case send-err
+         (mcp-server--send-error (alist-get 'id message) -32603 "Internal error" (error-message-string err) client-id)
+       (error
+        (message "MCP Debug: Error in send-error: %s" (error-message-string send-err)))))))
 
 (defun mcp-server--handle-initialize (id params client-id)
   "Handle initialize request with ID and PARAMS from CLIENT-ID."
@@ -330,17 +336,31 @@ If DEBUG is non-nil, enable debug logging."
           (when mcp-server-debug
             (message "MCP Debug: Tool %s - is-error-bool = %S (type: %s)" 
                      tool-name is-error-bool (type-of is-error-bool)))
-          ;; Send response with proper boolean value
-          (mcp-server--send-response-with-bool
-           client-id id
-           `((content . ,(append result nil)))
-           is-error-bool)))
+          ;; Use direct hash table approach to avoid alist conversion issues
+          (let ((response-hash (make-hash-table :test 'equal))
+                (result-hash (make-hash-table :test 'equal)))
+            ;; Build result hash
+            (puthash "content" (vconcat (append result nil)) result-hash)
+            (puthash "isError" (if is-error-bool t :false) result-hash)
+            ;; Build response hash
+            (puthash "jsonrpc" "2.0" response-hash)
+            (puthash "id" id response-hash)
+            (puthash "result" result-hash response-hash)
+            ;; Send using raw JSON
+            (let ((json-str (json-serialize response-hash)))
+              (when mcp-server-debug
+                (message "MCP Debug: Direct JSON: %s" json-str))
+              ;; Send the JSON directly by getting the client process
+              (let* ((client-data (mcp-server-transport-unix--get-client client-id))
+                     (process (car client-data)))
+                (when (and process (eq (process-status process) 'open))
+                  (process-send-string process (concat json-str "\n"))))))))
       
       (error
        (mcp-server--send-response
         client-id id
         `((content . (((type . "text")
-                       (text . ,(format "Tool execution failed: %s" (error-message-string err))))))
+                       (text . "Tool execution failed"))))
           (isError . t))))))
 
 (defun mcp-server--handle-resources-list (id params client-id)
@@ -374,7 +394,9 @@ Currently returns error - resources not yet implemented."
                     (id . ,id)
                     (result . ,result))))
     (when mcp-server-debug
-      (message "MCP Debug: Sending response = %S" response))
+      (message "MCP Debug: Sending response = %S" response)
+      (message "MCP Debug: mcp-server-current-transport = %S" mcp-server-current-transport)
+      (message "MCP Debug: client-id = %S (type: %s)" client-id (type-of client-id)))
     (mcp-server-transport-send mcp-server-current-transport client-id response)))
 
 (defun mcp-server--send-response-with-bool (client-id id result-content is-error-bool)
@@ -388,7 +410,31 @@ IS-ERROR-BOOL is a boolean indicating if this is an error."
          (response-ht (make-hash-table :test 'equal)))
     ;; Add content to result hash table
     (dolist (pair result-content)
-      (puthash (symbol-name (car pair)) (cdr pair) result-ht))
+      (let ((key (if (symbolp (car pair))
+                     (symbol-name (car pair))
+                   (car pair)))
+            (value (cdr pair)))
+        (when mcp-server-debug
+          (message "MCP Debug: Adding to result - key=%S, value=%S (type=%s)" key value (type-of value)))
+        ;; Convert the value properly for JSON serialization
+        (when (string= key "content")
+          (cond
+           ;; If it's a list of alists, convert each alist to hash table
+           ((and (listp value) (seq-every-p #'listp value))
+            (when mcp-server-debug
+              (message "MCP Debug: Converting content list of alists: %S" value))
+            (setq value (vconcat (mapcar (lambda (item)
+                                           (let ((ht (make-hash-table :test 'equal)))
+                                             (dolist (pair item)
+                                               (puthash (symbol-name (car pair)) (cdr pair) ht))
+                                             ht))
+                                         value)))
+            (when mcp-server-debug
+              (message "MCP Debug: Converted content to: %S" value)))
+           ;; If it's just a list, convert to vector
+           ((listp value)
+            (setq value (vconcat value)))))
+        (puthash key value result-ht)))
     ;; Add isError field with proper boolean value
     (puthash "isError" (if is-error-bool t :false) result-ht)
     ;; Build response hash table
@@ -401,10 +447,18 @@ IS-ERROR-BOOL is a boolean indicating if this is an error."
                is-error-bool response-ht))
     
     ;; Serialize and send using json-serialize directly
-    (let ((json-str (json-serialize response-ht)))
-      (when mcp-server-debug
-        (message "MCP Debug: Final JSON: %s" json-str))
-      (mcp-server-transport-send-raw mcp-server-current-transport client-id json-str))))
+    (condition-case err
+        (let ((json-str (json-serialize response-ht)))
+          (when mcp-server-debug
+            (message "MCP Debug: Final JSON: %s" json-str))
+          (mcp-server-transport-send-raw "unix" client-id json-str))
+      (error
+       (message "MCP Debug: Error in response-with-bool: %s" (error-message-string err))
+       ;; Fallback to normal response
+       (let ((content-value (alist-get 'content result-content)))
+         (mcp-server--send-response client-id id 
+                                    `((content . ,content-value)
+                                      (isError . ,(if is-error-bool t :false)))))))))
 
 ;;; Interactive Commands
 

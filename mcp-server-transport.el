@@ -66,9 +66,19 @@
 
 (defun mcp-server-transport-send (transport-name client-id message)
   "Send MESSAGE to CLIENT-ID using transport NAME."
+  (message "MCP Debug: transport-send START - transport=%s, client=%s" 
+           transport-name client-id)
   (let ((transport (mcp-server-transport-get transport-name)))
-    (when transport
-      (funcall (mcp-server-transport-send-fn transport) client-id message))))
+    (when (and (boundp 'mcp-server-debug) mcp-server-debug)
+      (message "MCP Debug: transport object = %S" transport))
+    (if transport
+        (condition-case err
+            (funcall (mcp-server-transport-send-fn transport) client-id message)
+          (error
+           (message "MCP Debug: Error in transport funcall: %s" (error-message-string err))
+           (signal (car err) (cdr err))))
+      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
+        (message "MCP Debug: No transport found for name: %s" transport-name)))))
 
 (defun mcp-server-transport-send-raw (transport-name client-id json-string)
   "Send raw JSON-STRING to CLIENT-ID using transport NAME.
@@ -114,9 +124,11 @@ This bypasses the normal JSON serialization."
       ;; Post-process to ensure proper boolean handling
       ;; Replace any quoted "false" or "true" in isError field with unquoted boolean
       (setq json-str (replace-regexp-in-string 
-                      "\"isError\":\\s-*\"\\(false\\|true\\)\"" 
+                      "\"isError\":\"\\(false\\|true\\)\"" 
                       "\"isError\":\\1" 
                       json-str))
+      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
+        (message "MCP Debug: After post-processing: %s" json-str))
       json-str)))
 
 (defun mcp-server-transport--alist-to-json (obj)
@@ -150,9 +162,18 @@ This bypasses the normal JSON serialization."
    ;; If it's a symbol, convert to string (except for special values)
    ((symbolp obj)
     (cond
-     ((eq obj t) t)
-     ((eq obj :null) :null)
-     ((eq obj :false) :false)
+     ((eq obj t) 
+      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
+        (message "MCP Debug: Converting symbol t to JSON true"))
+      t)
+     ((eq obj :null) 
+      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
+        (message "MCP Debug: Converting symbol :null to JSON null"))
+      :null)
+     ((eq obj :false) 
+      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
+        (message "MCP Debug: Converting symbol :false to JSON false"))
+      :false)
      (t 
       (when (and (boundp 'mcp-server-debug) mcp-server-debug)
         (message "MCP Debug: Unexpected symbol %S (name: %s, type: %s) being converted to string"
