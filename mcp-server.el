@@ -246,9 +246,10 @@ If DEBUG is non-nil, enable debug logging."
   (mcp-server--debug "Handling message from %s: %s" (or client-id "unknown") message)
   
   (condition-case err
-      (let ((method (alist-get 'method message))
-            (id (alist-get 'id message))
-            (params (alist-get 'params message)))
+      (catch 'mcp-handled
+        (let ((method (alist-get 'method message))
+              (id (alist-get 'id message))
+              (params (alist-get 'params message)))
         
         (cond
          ;; Initialize request
@@ -260,7 +261,12 @@ If DEBUG is non-nil, enable debug logging."
           (mcp-server--handle-tools-list id params client-id))
          
          ((string= method "tools/call")
-          (mcp-server--handle-tools-call id params client-id))
+          (when mcp-server-debug
+            (message "MCP Debug: About to call tools/call handler"))
+          (let ((result (mcp-server--handle-tools-call id params client-id)))
+            (when mcp-server-debug
+              (message "MCP Debug: tools/call handler returned: %S" result))
+            result))
          
          ;; Resources (future implementation)
          ((string= method "resources/list")
@@ -269,13 +275,17 @@ If DEBUG is non-nil, enable debug logging."
          ((string= method "resources/read")
           (mcp-server--handle-resources-read id params client-id))
          
+         ;; Prompts (future implementation)
+         ((string= method "prompts/list")
+          (mcp-server--handle-prompts-list id params client-id))
+         
          ;; Notifications
          ((string= method "notifications/initialized")
           (mcp-server--handle-initialized))
          
          ;; Unknown method
          (t
-          (mcp-server--send-error id -32601 "Method not found" method client-id))))
+          (mcp-server--send-error client-id id -32601 "Method not found" method)))))
     
     (error
      (when mcp-server-debug
@@ -283,7 +293,7 @@ If DEBUG is non-nil, enable debug logging."
        (message "MCP Debug: Message id=%S" (alist-get 'id message)))
      (mcp-server--error "Error handling message: %s" err)
      (condition-case send-err
-         (mcp-server--send-error (alist-get 'id message) -32603 "Internal error" (error-message-string err) client-id)
+         (mcp-server--send-error client-id (alist-get 'id message) -32603 "Internal error" (error-message-string err))
        (error
         (message "MCP Debug: Error in send-error: %s" (error-message-string send-err)))))))
 
@@ -337,24 +347,36 @@ If DEBUG is non-nil, enable debug logging."
             (message "MCP Debug: Tool %s - is-error-bool = %S (type: %s)" 
                      tool-name is-error-bool (type-of is-error-bool)))
           ;; Use direct hash table approach to avoid alist conversion issues
-          (let ((response-hash (make-hash-table :test 'equal))
-                (result-hash (make-hash-table :test 'equal)))
-            ;; Build result hash
-            (puthash "content" (vconcat (append result nil)) result-hash)
-            (puthash "isError" (if is-error-bool t :false) result-hash)
-            ;; Build response hash
-            (puthash "jsonrpc" "2.0" response-hash)
-            (puthash "id" id response-hash)
-            (puthash "result" result-hash response-hash)
-            ;; Send using raw JSON
-            (let ((json-str (json-serialize response-hash)))
-              (when mcp-server-debug
-                (message "MCP Debug: Direct JSON: %s" json-str))
-              ;; Send the JSON directly by getting the client process
-              (let* ((client-data (mcp-server-transport-unix--get-client client-id))
-                     (process (car client-data)))
-                (when (and process (eq (process-status process) 'open))
-                  (process-send-string process (concat json-str "\n"))))))))
+          (condition-case direct-err
+              (let ((response-hash (make-hash-table :test 'equal))
+                    (result-hash (make-hash-table :test 'equal)))
+                ;; Build result hash
+                (puthash "content" (vconcat (append result nil)) result-hash)
+                (puthash "isError" (if is-error-bool t :false) result-hash)
+                ;; Build response hash
+                (puthash "jsonrpc" "2.0" response-hash)
+                (puthash "id" id response-hash)
+                (puthash "result" result-hash response-hash)
+                ;; Send using raw JSON
+                (let ((json-str (json-serialize response-hash)))
+                  (when mcp-server-debug
+                    (message "MCP Debug: Direct JSON: %s" json-str))
+                  ;; Send the JSON directly by getting the client process
+                  (let* ((client-data (mcp-server-transport-unix--get-client client-id))
+                         (process (car client-data)))
+                    (if (and process (eq (process-status process) 'open))
+                        (progn
+                          (process-send-string process (concat json-str "\n"))
+                          (when mcp-server-debug
+                            (message "MCP Debug: Direct send completed successfully"))
+                          ;; Exit cleanly without returning to main handler
+                          (throw 'mcp-handled 'success))
+                      (error "Client process not available for direct send")))))
+            (error
+             ;; If direct approach fails, fall back to error response
+             (when mcp-server-debug
+               (message "MCP Debug: Direct send failed: %s" (error-message-string direct-err)))
+             (error "Direct send failed: %s" (error-message-string direct-err))))))
       
       (error
        (mcp-server--send-response
@@ -378,6 +400,15 @@ Currently returns error - resources not yet implemented."
   (mcp-server--debug "Resources read request from %s: %s" client-id params)
   
   (mcp-server--send-error client-id id -32002 "Resource not found" params))
+
+(defun mcp-server--handle-prompts-list (id params client-id)
+  "Handle prompts/list request with ID and PARAMS from CLIENT-ID.
+Currently returns empty list - prompts not yet implemented."
+  (mcp-server--debug "Prompts list request from %s: %s" client-id params)
+  
+  (mcp-server--send-response
+   client-id id
+   '((prompts . ()))))
 
 (defun mcp-server--send-error (client-id id code message &optional data)
   "Send error response to CLIENT-ID with ID, CODE, MESSAGE and optional DATA."
