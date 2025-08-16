@@ -106,17 +106,17 @@ Examples:
   (setq mcp-server-socket-name 
         (lambda () (format \"emacs-%s\" (system-name)))) ; Dynamic"
   :type '(choice (const :tag "PID-based (default)" nil)
-                 (string :tag "Fixed socket name")
-                 (const :tag "Username-based" user)
-                 (const :tag "Session-based" session)
-                 (function :tag "Dynamic function"))
+          (string :tag "Fixed socket name")
+          (const :tag "Username-based" user)
+          (const :tag "Session-based" session)
+          (function :tag "Dynamic function"))
   :group 'mcp-server)
 
 (defcustom mcp-server-socket-directory nil
   "Directory for socket files.
 If nil, uses XDG_RUNTIME_DIR or /tmp as fallback."
   :type '(choice (const :tag "Auto-detect (/tmp or XDG_RUNTIME_DIR)" nil)
-                 (directory :tag "Custom directory"))
+          (directory :tag "Custom directory"))
   :group 'mcp-server)
 
 (defcustom mcp-server-socket-conflict-resolution 'warn
@@ -127,9 +127,9 @@ If nil, uses XDG_RUNTIME_DIR or /tmp as fallback."
 - 'force: Remove existing socket and proceed (dangerous)
 - 'auto: Automatically append suffix to avoid conflicts"
   :type '(choice (const :tag "Warn and use alternative" warn)
-                 (const :tag "Error and refuse to start" error)  
-                 (const :tag "Force removal (dangerous)" force)
-                 (const :tag "Auto-append suffix" auto))
+          (const :tag "Error and refuse to start" error)
+          (const :tag "Force removal (dangerous)" force)
+          (const :tag "Auto-append suffix" auto))
   :group 'mcp-server)
 
 (defvar mcp-server-capabilities
@@ -191,8 +191,8 @@ HOST and PORT specify the bind address (currently not implemented)."
   (setq mcp-server-current-transport transport-name)
   
   (mcp-server--info "Starting MCP server (version %s) with %s transport" 
-                          mcp-server-version transport-name)
-  
+                    mcp-server-version transport-name)
+
   ;; Initialize components
   (mcp-server-tools-init)
   (mcp-server-security-init)
@@ -250,52 +250,49 @@ If DEBUG is non-nil, enable debug logging."
         (let ((method (alist-get 'method message))
               (id (alist-get 'id message))
               (params (alist-get 'params message)))
-        
-        (cond
-         ;; Initialize request
-         ((string= method "initialize")
-          (mcp-server--handle-initialize id params client-id))
-         
-         ;; Tools
-         ((string= method "tools/list")
-          (mcp-server--handle-tools-list id params client-id))
-         
-         ((string= method "tools/call")
-          (when mcp-server-debug
-            (message "MCP Debug: About to call tools/call handler"))
-          (let ((result (mcp-server--handle-tools-call id params client-id)))
-            (when mcp-server-debug
-              (message "MCP Debug: tools/call handler returned: %S" result))
-            result))
-         
-         ;; Resources (future implementation)
-         ((string= method "resources/list")
-          (mcp-server--handle-resources-list id params client-id))
-         
-         ((string= method "resources/read")
-          (mcp-server--handle-resources-read id params client-id))
-         
-         ;; Prompts (future implementation)
-         ((string= method "prompts/list")
-          (mcp-server--handle-prompts-list id params client-id))
-         
-         ;; Notifications
-         ((string= method "notifications/initialized")
-          (mcp-server--handle-initialized))
-         
-         ;; Unknown method
-         (t
-          (mcp-server--send-error client-id id -32601 "Method not found" method)))))
+
+          (cond
+           ;; Initialize request
+           ((string= method "initialize")
+            (mcp-server--handle-initialize id params client-id))
+
+           ;; Tools
+           ((string= method "tools/list")
+            (mcp-server--handle-tools-list id params client-id))
+
+           ((string= method "tools/call")
+            (mcp-server--debug "About to call tools/call handler")
+            (let ((result (mcp-server--handle-tools-call id params client-id)))
+              (mcp-server--debug "tools/call handler returned: %S" result)
+              result))
+
+           ;; Resources (future implementation)
+           ((string= method "resources/list")
+            (mcp-server--handle-resources-list id params client-id))
+
+           ((string= method "resources/read")
+            (mcp-server--handle-resources-read id params client-id))
+
+           ;; Prompts (future implementation)
+           ((string= method "prompts/list")
+            (mcp-server--handle-prompts-list id params client-id))
+
+           ;; Notifications
+           ((string= method "notifications/initialized")
+            (mcp-server--handle-initialized))
+
+           ;; Unknown method
+           (t
+            (mcp-server--send-error client-id id -32601 "Method not found" method)))))
     
     (error
-     (when mcp-server-debug
-       (message "MCP Debug: Main error handler - err=%S, message=%S" err message)
-       (message "MCP Debug: Message id=%S" (alist-get 'id message)))
+     (mcp-server--debug "Main error handler - err=%S, message=%S" err message)
+     (mcp-server--debug "Message id=%S" (alist-get 'id message))
      (mcp-server--error "Error handling message: %s" err)
      (condition-case send-err
          (mcp-server--send-error client-id (alist-get 'id message) -32603 "Internal error" (error-message-string err))
        (error
-        (message "MCP Debug: Error in send-error: %s" (error-message-string send-err)))))))
+        (mcp-server--debug "Error in send-error: %s" (error-message-string send-err)))))))
 
 (defun mcp-server--handle-initialize (id params client-id)
   "Handle initialize request with ID and PARAMS from CLIENT-ID."
@@ -341,11 +338,10 @@ If DEBUG is non-nil, enable debug logging."
         (let* ((result (mcp-server-tools-call tool-name arguments))
                ;; Check if this is an error result
                (is-error-bool (and (> (length result) 0)
-                                    (listp (aref result 0))
-                                    (eq (alist-get 'type (aref result 0)) 'error))))
-          (when mcp-server-debug
-            (message "MCP Debug: Tool %s - is-error-bool = %S (type: %s)" 
-                     tool-name is-error-bool (type-of is-error-bool)))
+                                   (listp (aref result 0))
+                                   (eq (alist-get 'type (aref result 0)) 'error))))
+          (mcp-server--debug "Tool %s - is-error-bool = %S (type: %s)" 
+                             tool-name is-error-bool (type-of is-error-bool))
           ;; Use direct hash table approach to avoid alist conversion issues
           (condition-case direct-err
               (let ((response-hash (make-hash-table :test 'equal))
@@ -359,31 +355,28 @@ If DEBUG is non-nil, enable debug logging."
                 (puthash "result" result-hash response-hash)
                 ;; Send using raw JSON
                 (let ((json-str (json-serialize response-hash)))
-                  (when mcp-server-debug
-                    (message "MCP Debug: Direct JSON: %s" json-str))
+                  (mcp-server--debug "Direct JSON: %s" json-str)
                   ;; Send the JSON directly by getting the client process
                   (let* ((client-data (mcp-server-transport-unix--get-client client-id))
                          (process (car client-data)))
                     (if (and process (eq (process-status process) 'open))
                         (progn
                           (process-send-string process (concat json-str "\n"))
-                          (when mcp-server-debug
-                            (message "MCP Debug: Direct send completed successfully"))
+                          (mcp-server--debug "Direct send completed successfully")
                           ;; Exit cleanly without returning to main handler
                           (throw 'mcp-handled 'success))
                       (error "Client process not available for direct send")))))
             (error
              ;; If direct approach fails, fall back to error response
-             (when mcp-server-debug
-               (message "MCP Debug: Direct send failed: %s" (error-message-string direct-err)))
+             (mcp-server--debug "Direct send failed: %s" (error-message-string direct-err))
              (error "Direct send failed: %s" (error-message-string direct-err))))))
-      
-      (error
-       (mcp-server--send-response
-        client-id id
-        `((content . (((type . "text")
-                       (text . "Tool execution failed"))))
-          (isError . t))))))
+
+    (error
+     (mcp-server--send-response
+      client-id id
+      `((content . (((type . "text")
+                     (text . "Tool execution failed"))))
+        (isError . t))))))
 
 (defun mcp-server--handle-resources-list (id params client-id)
   "Handle resources/list request with ID and PARAMS from CLIENT-ID.
@@ -392,7 +385,7 @@ Currently returns empty list - resources not yet implemented."
   
   (mcp-server--send-response
    client-id id
-   '((resources . ()))))
+   '((resources . []))))
 
 (defun mcp-server--handle-resources-read (id params client-id)
   "Handle resources/read request with ID and PARAMS from CLIENT-ID.
@@ -408,7 +401,7 @@ Currently returns empty list - prompts not yet implemented."
   
   (mcp-server--send-response
    client-id id
-   '((prompts . ()))))
+   '((prompts . []))))
 
 (defun mcp-server--send-error (client-id id code message &optional data)
   "Send error response to CLIENT-ID with ID, CODE, MESSAGE and optional DATA."
@@ -424,10 +417,9 @@ Currently returns empty list - prompts not yet implemented."
   (let ((response `((jsonrpc . "2.0")
                     (id . ,id)
                     (result . ,result))))
-    (when mcp-server-debug
-      (message "MCP Debug: Sending response = %S" response)
-      (message "MCP Debug: mcp-server-current-transport = %S" mcp-server-current-transport)
-      (message "MCP Debug: client-id = %S (type: %s)" client-id (type-of client-id)))
+    (mcp-server--debug "Sending response = %S" response)
+    (mcp-server--debug "mcp-server-current-transport = %S" mcp-server-current-transport)
+    (mcp-server--debug "client-id = %S (type: %s)" client-id (type-of client-id))
     (mcp-server-transport-send mcp-server-current-transport client-id response)))
 
 (defun mcp-server--send-response-with-bool (client-id id result-content is-error-bool)
@@ -445,23 +437,20 @@ IS-ERROR-BOOL is a boolean indicating if this is an error."
                      (symbol-name (car pair))
                    (car pair)))
             (value (cdr pair)))
-        (when mcp-server-debug
-          (message "MCP Debug: Adding to result - key=%S, value=%S (type=%s)" key value (type-of value)))
+        (mcp-server--debug "Adding to result - key=%S, value=%S (type=%s)" key value (type-of value))
         ;; Convert the value properly for JSON serialization
         (when (string= key "content")
           (cond
            ;; If it's a list of alists, convert each alist to hash table
            ((and (listp value) (seq-every-p #'listp value))
-            (when mcp-server-debug
-              (message "MCP Debug: Converting content list of alists: %S" value))
+            (mcp-server--debug "Converting content list of alists: %S" value)
             (setq value (vconcat (mapcar (lambda (item)
                                            (let ((ht (make-hash-table :test 'equal)))
                                              (dolist (pair item)
                                                (puthash (symbol-name (car pair)) (cdr pair) ht))
                                              ht))
                                          value)))
-            (when mcp-server-debug
-              (message "MCP Debug: Converted content to: %S" value)))
+            (mcp-server--debug "Converted content to: %S" value))
            ;; If it's just a list, convert to vector
            ((listp value)
             (setq value (vconcat value)))))
@@ -473,18 +462,16 @@ IS-ERROR-BOOL is a boolean indicating if this is an error."
     (puthash "id" id response-ht)
     (puthash "result" result-ht response-ht)
     
-    (when mcp-server-debug
-      (message "MCP Debug: Response hash table - isError=%S, response-ht=%S" 
-               is-error-bool response-ht))
-    
+    (mcp-server--debug "Response hash table - isError=%S, response-ht=%S" 
+                       is-error-bool response-ht)
+
     ;; Serialize and send using json-serialize directly
     (condition-case err
         (let ((json-str (json-serialize response-ht)))
-          (when mcp-server-debug
-            (message "MCP Debug: Final JSON: %s" json-str))
+          (mcp-server--debug "Final JSON: %s" json-str)
           (mcp-server-transport-send-raw "unix" client-id json-str))
       (error
-       (message "MCP Debug: Error in response-with-bool: %s" (error-message-string err))
+       (mcp-server--debug "Error in response-with-bool: %s" (error-message-string err))
        ;; Fallback to normal response
        (let ((content-value (alist-get 'content result-content)))
          (mcp-server--send-response client-id id 

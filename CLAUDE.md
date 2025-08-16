@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an Emacs MCP (Model Context Protocol) Server implementation written in pure Elisp. It enables direct integration between Large Language Models and Emacs internals by exposing Emacs functionality through standardized MCP tools.
 
+## Development
+
+- Always ensure that parantheses are matched perfectly.
+
 ## Key Architecture Components
 
 ### Modular Transport System

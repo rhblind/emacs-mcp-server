@@ -18,6 +18,22 @@
 
 (require 'cl-lib)
 
+;;; Transport Logging
+
+(defun mcp-server-transport--log (level message &rest args)
+  "Log MESSAGE with LEVEL and ARGS if debugging is enabled."
+  (when (and (boundp 'mcp-server-debug) mcp-server-debug)
+    (let ((formatted-message (apply #'format message args)))
+      (message "[MCP TRANSPORT %s] %s" level formatted-message))))
+
+(defun mcp-server-transport--debug (message &rest args)
+  "Log debug MESSAGE with ARGS."
+  (apply #'mcp-server-transport--log "DEBUG" message args))
+
+(defun mcp-server-transport--error (message &rest args)
+  "Log error MESSAGE with ARGS."
+  (apply #'mcp-server-transport--log "ERROR" message args))
+
 ;;; Transport Interface
 
 (cl-defstruct mcp-server-transport
@@ -66,19 +82,17 @@
 
 (defun mcp-server-transport-send (transport-name client-id message)
   "Send MESSAGE to CLIENT-ID using transport NAME."
-  (message "MCP Debug: transport-send START - transport=%s, client=%s" 
-           transport-name client-id)
+  (mcp-server-transport--debug "transport-send START - transport=%s, client=%s" 
+                               transport-name client-id)
   (let ((transport (mcp-server-transport-get transport-name)))
-    (when (and (boundp 'mcp-server-debug) mcp-server-debug)
-      (message "MCP Debug: transport object = %S" transport))
+    (mcp-server-transport--debug "transport object = %S" transport)
     (if transport
         (condition-case err
             (funcall (mcp-server-transport-send-fn transport) client-id message)
           (error
-           (message "MCP Debug: Error in transport funcall: %s" (error-message-string err))
+           (mcp-server-transport--error "Error in transport funcall: %s" (error-message-string err))
            (signal (car err) (cdr err))))
-      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
-        (message "MCP Debug: No transport found for name: %s" transport-name)))))
+      (mcp-server-transport--error "No transport found for name: %s" transport-name))))
 
 (defun mcp-server-transport-send-raw (transport-name client-id json-string)
   "Send raw JSON-STRING to CLIENT-ID using transport NAME.
@@ -110,25 +124,22 @@ This bypasses the normal JSON serialization."
 (defun mcp-server-transport--format-json-rpc (message)
   "Format MESSAGE as JSON-RPC string."
   (let ((converted (mcp-server-transport--alist-to-json message)))
-    (when (and (boundp 'mcp-server-debug) mcp-server-debug)
-      (message "MCP Debug: About to serialize, converted message = %S" converted)
-      (when (hash-table-p converted)
-        (let ((result-ht (gethash "result" converted)))
-          (when (hash-table-p result-ht)
-            (message "MCP Debug: isError field value in result: %S (type: %s)" 
-                     (gethash "isError" result-ht)
-                     (type-of (gethash "isError" result-ht)))))))
+    (mcp-server-transport--debug "About to serialize, converted message = %S" converted)
+    (when (hash-table-p converted)
+      (let ((result-ht (gethash "result" converted)))
+        (when (hash-table-p result-ht)
+          (mcp-server-transport--debug "isError field value in result: %S (type: %s)"
+                                       (gethash "isError" result-ht)
+                                       (type-of (gethash "isError" result-ht))))))
     (let ((json-str (json-serialize converted)))
-      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
-        (message "MCP Debug: Final JSON string: %s" json-str))
+      (mcp-server-transport--debug "Final JSON string: %s" json-str)
       ;; Post-process to ensure proper boolean handling
       ;; Replace any quoted "false" or "true" in isError field with unquoted boolean
-      (setq json-str (replace-regexp-in-string 
-                      "\"isError\":\"\\(false\\|true\\)\"" 
-                      "\"isError\":\\1" 
+      (setq json-str (replace-regexp-in-string
+                      "\"isError\":\"\\(false\\|true\\)\""
+                      "\"isError\":\\1"
                       json-str))
-      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
-        (message "MCP Debug: After post-processing: %s" json-str))
+      (mcp-server-transport--debug "After post-processing: %s" json-str)
       json-str)))
 
 (defun mcp-server-transport--alist-to-json (obj)
@@ -150,10 +161,9 @@ This bypasses the normal JSON serialization."
                        (symbol-name (car pair))
                      (car pair)))
               (value (mcp-server-transport--alist-to-json (cdr pair))))
-          (when (and (boundp 'mcp-server-debug) mcp-server-debug
-                     (string= key "isError"))
-            (message "MCP Debug: Processing isError - raw value: %S, converted value: %S" 
-                     (cdr pair) value))
+          (when (string= key "isError")
+            (mcp-server-transport--debug "Processing isError - raw value: %S, converted value: %S" 
+                                         (cdr pair) value))
           (puthash key value ht)))
       ht))
    ;; If it's a list (including array of objects), convert to vector
@@ -163,21 +173,17 @@ This bypasses the normal JSON serialization."
    ((symbolp obj)
     (cond
      ((eq obj t) 
-      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
-        (message "MCP Debug: Converting symbol t to JSON true"))
+      (mcp-server-transport--debug "Converting symbol t to JSON true")
       t)
      ((eq obj :null) 
-      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
-        (message "MCP Debug: Converting symbol :null to JSON null"))
+      (mcp-server-transport--debug "Converting symbol :null to JSON null")
       :null)
      ((eq obj :false) 
-      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
-        (message "MCP Debug: Converting symbol :false to JSON false"))
+      (mcp-server-transport--debug "Converting symbol :false to JSON false")
       :false)
      (t 
-      (when (and (boundp 'mcp-server-debug) mcp-server-debug)
-        (message "MCP Debug: Unexpected symbol %S (name: %s, type: %s) being converted to string"
-                 obj (symbol-name obj) (type-of obj)))
+      (mcp-server-transport--debug "Unexpected symbol %S (name: %s, type: %s) being converted to string"
+                                   obj (symbol-name obj) (type-of obj))
       (symbol-name obj))))
    ;; Numbers, strings, and other primitives return as-is
    (t obj)))
@@ -234,7 +240,7 @@ Returns updated buffer with remaining partial data."
           (condition-case err
               (funcall line-processor line)
             (error
-             (message "Error processing line: %s" (error-message-string err)))))))
+             (mcp-server-transport--error "Error processing line: %s" (error-message-string err)))))))
     
     ;; Return remaining partial data
     combined))

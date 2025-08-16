@@ -19,6 +19,26 @@
 (require 'mcp-server-transport)
 (require 'cl-lib)
 
+;;; Unix Transport Logging
+
+(defun mcp-server-transport-unix--log (level message &rest args)
+  "Log MESSAGE with LEVEL and ARGS if debugging is enabled."
+  (when (and (boundp 'mcp-server-debug) mcp-server-debug)
+    (let ((formatted-message (apply #'format message args)))
+      (message "[MCP UNIX %s] %s" level formatted-message))))
+
+(defun mcp-server-transport-unix--debug (message &rest args)
+  "Log debug MESSAGE with ARGS."
+  (apply #'mcp-server-transport-unix--log "DEBUG" message args))
+
+(defun mcp-server-transport-unix--info (message &rest args)
+  "Log info MESSAGE with ARGS."
+  (apply #'mcp-server-transport-unix--log "INFO" message args))
+
+(defun mcp-server-transport-unix--error (message &rest args)
+  "Log error MESSAGE with ARGS."
+  (apply #'mcp-server-transport-unix--log "ERROR" message args))
+
 ;;; Variables
 
 (defvar mcp-server-transport-unix--server-process nil
@@ -110,13 +130,13 @@
     (cond
      ;; If socket is stale, we can safely remove it
      (is-stale
-      (message "Removing stale socket: %s" socket-path)
+      (mcp-server-transport-unix--info "Removing stale socket: %s" socket-path)
       (delete-file socket-path)
       socket-path)
      
      ;; Force: remove existing socket (dangerous)
      ((eq conflict-resolution 'force)
-      (message "Forcibly removing existing socket: %s" socket-path)
+      (mcp-server-transport-unix--info "Forcibly removing existing socket: %s" socket-path)
       (delete-file socket-path)
       socket-path)
      
@@ -130,7 +150,7 @@
      
      ;; Warn: notify user and use alternative
      (t
-      (message "Socket exists: %s. Using alternative naming." socket-path)
+      (mcp-server-transport-unix--info "Socket exists: %s. Using alternative naming." socket-path)
       (mcp-server-transport-unix--find-alternative-socket-path socket-path)))))
 
 (defun mcp-server-transport-unix--is-socket-stale (socket-path)
@@ -169,8 +189,8 @@
     (condition-case err
         (delete-file socket-path)
       (error
-       (message "Warning: Could not delete socket file %s: %s" 
-                socket-path (error-message-string err))))))
+       (mcp-server-transport-unix--error "Warning: Could not delete socket file %s: %s" 
+                                         socket-path (error-message-string err))))))
 
 ;;; Client Management
 
@@ -210,7 +230,7 @@
   "Handle incoming data on server PROCESS with STRING."
   ;; For Unix domain socket servers, new connections are handled via sentinel
   ;; This filter should not normally be called
-  (message "Unexpected data on server process: %s" string))
+  (mcp-server-transport-unix--debug "Unexpected data on server process: %s" string))
 
 (defun mcp-server-transport-unix--server-sentinel (process event)
   "Handle server PROCESS sentinel EVENT."
@@ -220,11 +240,11 @@
     (mcp-server-transport-unix--handle-new-connection process))
    ;; Server process terminated
    ((memq (process-status process) '(exit signal))
-    (message "Unix socket server process terminated: %s" event)
+    (mcp-server-transport-unix--error "Unix socket server process terminated: %s" event)
     (mcp-server-transport-unix--stop))
    ;; Other events
    (t
-    (message "Unix socket server process event: %s" event))))
+    (mcp-server-transport-unix--debug "Unix socket server process event: %s" event))))
 
 (defun mcp-server-transport-unix--client-filter (process string)
   "Handle incoming data from client PROCESS with STRING."
@@ -243,13 +263,13 @@
   "Handle client PROCESS sentinel EVENT."
   (let ((client-id (mcp-server-transport-unix--find-client-by-process process)))
     (when client-id
-      (message "Client %s disconnected: %s" client-id (string-trim event))
+      (mcp-server-transport-unix--info "Client %s disconnected: %s" client-id (string-trim event))
       (mcp-server-transport-unix--remove-client client-id))))
 
 (defun mcp-server-transport-unix--handle-new-connection (client-process)
   "Handle new connection from CLIENT-PROCESS."
   (let ((client-id (mcp-server-transport--generate-client-id)))
-    (message "New Unix socket client connected: %s" client-id)
+    (mcp-server-transport-unix--info "New Unix socket client connected: %s" client-id)
     
     ;; Set up client process
     (set-process-filter client-process #'mcp-server-transport-unix--client-filter)
@@ -273,7 +293,7 @@
         (when mcp-server-transport-unix--message-handler
           (funcall mcp-server-transport-unix--message-handler message client-id)))
     (error
-     (message "Error processing message from %s: %s" client-id (error-message-string err))
+     (mcp-server-transport-unix--error "Error processing message from %s: %s" client-id (error-message-string err))
      ;; Send error response to client
      (mcp-server-transport-unix--send-error-to-client 
       client-id nil -32700 "Parse error" (error-message-string err)))))
@@ -285,9 +305,9 @@
          (process (car client-data)))
     (when (and process (eq (process-status process) 'open))
       (let ((simple-error (format "{\"jsonrpc\":\"2.0\",\"id\":%s,\"error\":{\"code\":%d,\"message\":\"%s\"}}\n"
-                                   (if id (number-to-string id) "null")
-                                   code
-                                   message)))
+                                  (if id (number-to-string id) "null")
+                                  code
+                                  message)))
         (process-send-string process simple-error)))))
 
 (defun mcp-server-transport-unix--send-to-client (client-id message)
@@ -299,14 +319,14 @@
           (let ((json-string (mcp-server-transport--format-json-rpc message)))
             (process-send-string process (concat json-string "\n")))
         (error
-         (message "Critical error sending message to client %s: %s" 
-                  client-id (error-message-string err))
+         (mcp-server-transport-unix--error "Critical error sending message to client %s: %s" 
+                                           client-id (error-message-string err))
          ;; Send minimal error response to avoid recursion
          (condition-case err2
              (let ((simple-error (format "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"Internal error\"}}\n")))
                (process-send-string process simple-error))
            (error
-            (message "Failed to send even simple error response: %s" (error-message-string err2)))))))))
+            (mcp-server-transport-unix--error "Failed to send even simple error response: %s" (error-message-string err2)))))))))
 
 ;;; Transport Implementation
 
@@ -337,7 +357,7 @@
                :coding 'utf-8))
         
         (setq mcp-server-transport-unix--running t)
-        (message "Unix socket MCP server started at: %s" mcp-server-transport-unix--socket-path))
+        (mcp-server-transport-unix--info "Unix socket MCP server started at: %s" mcp-server-transport-unix--socket-path))
     
     (error
      (mcp-server-transport-unix--cleanup-socket mcp-server-transport-unix--socket-path)
@@ -367,7 +387,7 @@
     (setq mcp-server-transport-unix--running nil)
     (setq mcp-server-transport-unix--message-handler nil)
     
-    (message "Unix socket MCP server stopped")))
+    (mcp-server-transport-unix--info "Unix socket MCP server stopped")))
 
 (defun mcp-server-transport-unix--send (client-id message)
   "Send MESSAGE to CLIENT-ID."
@@ -381,8 +401,8 @@
       (condition-case err
           (process-send-string process (concat json-string "\n"))
         (error
-         (message "Error sending raw message to client %s: %s" 
-                  client-id (error-message-string err)))))))
+         (mcp-server-transport-unix--error "Error sending raw message to client %s: %s" 
+                                           client-id (error-message-string err)))))))
 
 (defun mcp-server-transport-unix--status ()
   "Get status of Unix transport."
