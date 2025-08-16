@@ -5,7 +5,6 @@
 
 ;; Load the MCP server modules
 (require 'mcp-server)
-(require 'mcp-server-protocol)
 (require 'mcp-server-transport)
 (require 'mcp-server-transport-unix)
 (require 'mcp-server-tools)

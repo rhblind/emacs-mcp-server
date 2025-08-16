@@ -136,7 +136,8 @@ start_emacs_server() {
     
     # Start Emacs directly with eval commands
     "$EMACS_BIN" --batch \
-        --eval "(add-to-list 'load-path \"$SCRIPT_DIR\")" \
+        --eval "(add-to-list 'load-path \"$SCRIPT_DIR/../..\")" \
+        --eval "(add-to-list 'load-path \"$SCRIPT_DIR/../config\")" \
         --eval "(require 'test-config)" \
         --eval "(setq mcp-server-socket-name \"$TEST_SOCKET_NAME\")" \
         --eval "(setq mcp-server-debug t)" \

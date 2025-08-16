@@ -20,7 +20,6 @@ The server uses a pluggable transport architecture:
 - Multiple transport backends can coexist
 
 ### Core Protocol Implementation
-- `mcp-server-protocol.el` - JSON-RPC 2.0 message handling and MCP lifecycle
 - `mcp-server.el` - Main entry point and server orchestration
 - Full MCP draft specification compliance
 
@@ -32,10 +31,10 @@ The server uses a pluggable transport architecture:
 ## Essential Commands
 
 ### Development and Testing
-- `./test-runner.sh` - Comprehensive test suite for validation
-- `./test-runner.sh -v` - Run tests with verbose output  
-- `./test-runner.sh -k` - Keep server running for manual testing
-- `./test-runner.sh -s` - Test against existing server instance
+- `./test/scripts/test-runner.sh` - Comprehensive test suite for validation
+- `./test/scripts/test-runner.sh -v` - Run tests with verbose output  
+- `./test/scripts/test-runner.sh -k` - Keep server running for manual testing
+- `./test/scripts/test-runner.sh -s` - Test against existing server instance
 
 ### Server Management
 ```elisp
@@ -178,7 +177,7 @@ if client.connect() and client.initialize():
 ```
 
 ### Testing Changes
-1. Run `./test-runner.sh` to validate core functionality
+1. Run `./test/scripts/test-runner.sh` to validate core functionality
 2. Test with actual MCP clients using wrapper scripts
 3. Verify security controls work as expected
 4. Check multi-client concurrent connections
@@ -194,15 +193,26 @@ if client.connect() and client.initialize():
 ```
 mcp-server/
 ├── mcp-server.el                    # Main entry point and orchestration
-├── mcp-server-protocol.el           # JSON-RPC 2.0 and MCP protocol
 ├── mcp-server-transport.el          # Transport interface definition
 ├── mcp-server-transport-unix.el     # Unix domain socket implementation
 ├── mcp-server-transport-tcp.el      # TCP transport (planned)
 ├── mcp-server-tools.el              # Tool registry and execution
 ├── mcp-server-security.el           # Security and sandboxing
 ├── mcp-server-emacs-tools.el        # Emacs-specific tool implementations
-├── test-config.el                   # Test configuration and utilities
-├── test-runner.sh                   # Comprehensive test suite
+├── test/                            # Test suite directory
+│   ├── config/                      # Test configuration files
+│   │   ├── test-config.el           # Main test configuration
+│   │   ├── minimal-test-config.el   # Minimal test configuration
+│   │   └── test-json-false.el       # JSON serialization tests
+│   ├── scripts/                     # Test runner scripts
+│   │   ├── test-runner.sh           # Comprehensive test suite
+│   │   ├── start-test-server.sh     # Test server startup
+│   │   ├── test-hello-world.sh      # Hello world test
+│   │   ├── test-hello-world.py      # Python test script
+│   │   └── debug-test.py            # Debug test utilities
+│   └── integration/                 # Integration test scripts
+│       ├── test-unix-socket-fixed.sh # Fixed Unix socket tests
+│       ├── test-unix-socket.sh      # Original socket tests
 └── examples/                        # Client examples and integrations
     ├── mcp-client-configs/          # MCP client configuration examples
     ├── unix-socket-client.py        # Python client implementation

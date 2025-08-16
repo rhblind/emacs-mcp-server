@@ -29,7 +29,7 @@ log_warning() {
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/minimal-test-config.el"
+CONFIG_FILE="$SCRIPT_DIR/../config/minimal-test-config.el"
 PIDFILE="$SCRIPT_DIR/test-emacs.pid"
 LOGFILE="$SCRIPT_DIR/test-emacs.log"
 
