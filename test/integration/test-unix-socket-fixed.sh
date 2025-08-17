@@ -292,7 +292,7 @@ OPTIONS:
     --eval EXPR         Evaluate specific elisp expression
 
 EXAMPLES:
-    $0                                  # Auto-discover socket and run full test
+    $0                                  # Use fallback socket search and run full test
     $0 /tmp/mcp-server-12345.sock  # Use specific socket path
     $0 -s /tmp/custom.sock              # Specify socket explicitly
     $0 -i                              # Interactive mode

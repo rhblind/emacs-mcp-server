@@ -1,231 +1,246 @@
 # MCP Server for Emacs
 
-A pure Elisp implementation of the Model Context Protocol (MCP) server that enables direct integration between Large Language Models and Emacs internals.
+Connect Large Language Models directly to your Emacs environment! This MCP (Model Context Protocol) server exposes Emacs functionality through standardized tools, allowing LLMs like Claude to read and modify your buffers, execute elisp code, navigate files, and much more.
 
-## Overview
+## Quick Start
 
-This MCP server exposes Emacs functionality through standardized MCP tools, allowing LLMs like Claude to:
-
-- Execute arbitrary elisp code safely
-- Read and modify buffer contents
-- Navigate and manipulate cursor position
-- Access Emacs variables and state
-- Execute interactive commands
-- Manage windows and frames
-- And much more!
-
-## Features
-
-- **Full MCP Protocol Compliance**: Implements MCP draft specification
-- **Safe Execution**: Sandboxed elisp evaluation with permission controls
-- **Comprehensive Tools**: 12+ built-in tools covering core Emacs functionality
-- **Security First**: Input validation, audit logging, and permission management
-- **stdio Transport**: JSON-RPC 2.0 over stdin/stdout for easy integration
-
-## Installation
-
-1. Place the files in your Emacs configuration directory:
-
-   ```bash
-   # If using Doom Emacs
-   cp -r mcp-server ~/.doom.d/lisp/
-   ```
-
-2. Add to your Emacs configuration:
-   ```elisp
-   (add-to-list 'load-path "~/.doom.d/lisp/mcp-server")
-   (require 'mcp-server)
-   ```
-
-## Usage
-
-### Interactive Mode
-
-Start the server interactively within Emacs:
+**Installation:** Place the files in your Emacs configuration directory and add to your config:
 
 ```elisp
-M-x mcp-server-start
+(add-to-list 'load-path "~/path-to/mcp-server")
+(require 'mcp-server)
 ```
 
-### Subprocess Mode
+Alternatively, use package managers:
 
-Run as a subprocess for MCP client integration:
+```elisp
+;; Using straight.el
+(use-package mcp-server
+  :straight (:type git :host github :repo "rhblind/emacs-mcp-server"
+             :files ("*.el" "mcp-wrapper.py" "mcp-wrapper.sh"))
+  :config
+  (add-hook 'emacs-startup-hook #'mcp-server-start-unix))
 
-```bash
-emacs --batch -l ~/.doom.d/lisp/mcp-server/mcp-server.el -f mcp-server-main
+;; Using use-package with manual path
+(use-package mcp-server
+  :load-path "~/path-to/mcp-server"
+  :config
+  (add-hook 'emacs-startup-hook #'mcp-server-start-unix))
+
+;; Using Doom Emacs package! macro
+(package! mcp-server
+  :recipe (:type git :host github :repo "rhblind/emacs-mcp-server"
+           :files ("*.el" "mcp-wrapper.py" "mcp-wrapper.sh")))
 ```
 
-### With Claude Code
+**Start the server:** Run `M-x mcp-server-start-unix` in Emacs. The server creates a Unix socket at `~/.config/emacs/.local/cache/emacs-mcp-server.sock` (or similar based on your Emacs configuration).
 
-Configure claude-code to use this server by adding it to your MCP configuration.
+**Connect Claude Desktop:** Add this to your Claude Desktop configuration:
 
-```shell
+```json
 {
-"mcpServers": {
+  "mcpServers": {
     "emacs": {
-    "command": "socat",
-    "args": ["STDIO", "UNIX-CONNECT:~/Library/Caches/emacs-mcp-server/emacs-mcp-server-claude.sock"],
-    "transport": "stdio"
+      "command": "socat",
+      "args": ["-", "UNIX-CONNECT:~/.config/emacs/.local/cache/emacs-mcp-server.sock"],
+      "transport": "stdio"
     }
-}
+  }
 }
 ```
+
+**That's it!** Claude can now interact with your Emacs session.
+
+## What LLMs Can Do
+
+Once connected, LLMs can perform powerful operations in your Emacs environment:
+
+**Code and Text Manipulation**
+- Read and write any buffer - get content from files, scratch buffers, terminals
+- Execute elisp code - run any Emacs Lisp expression safely 
+- Navigate and edit - move cursor, insert text, select regions
+- Manage files - open, save, create new files and buffers
+
+**Emacs Integration**
+- Run interactive commands - execute any `M-x` command programmatically
+- Access variables - read and modify Emacs configuration and state
+- Window management - get layout information, manage splits
+- Major mode operations - work with mode-specific functionality
+
+**Example Interactions:**
+- *"Add a docstring to this function"* → Claude reads your buffer, analyzes the function, and adds proper documentation
+- *"Refactor this code to use modern Python"* → Claude reads the code, suggests improvements, and can apply changes directly
+- *"Create a new React component file"* → Claude creates the file, adds boilerplate code, and opens it in a buffer
+- *"Fix the indentation in this buffer"* → Claude reads the content and applies proper formatting
 
 ## Available Tools
 
-### Core Elisp Tools
+**Current Tool:**
+- `eval-elisp` - Execute arbitrary elisp expressions safely and return the result
 
-- **`eval-elisp`** - Execute arbitrary elisp expressions
-- **`get-variable`** - Read Emacs variable values
-- **`set-variable`** - Set Emacs variable values
-- **`call-command`** - Execute interactive Emacs commands
+**What you can do now:** With the `eval-elisp` tool, you can already accomplish a lot! LLMs can:
+- Read any buffer: `(buffer-string)` or `(with-current-buffer "filename.txt" (buffer-string))`
+- Write to buffers: `(insert "text")` or `(with-current-buffer "filename.txt" (insert "text"))`
+- Navigate files: `(find-file "path/to/file")` or `(switch-to-buffer "buffer-name")`
+- Get cursor position: `(point)` or `(line-number-at-pos)`
+- Move cursor: `(goto-char 100)` or `(goto-line 50)`
+- Get selections: `(if (region-active-p) (buffer-substring (region-beginning) (region-end)) "No selection")`
+- List buffers: `(mapcar #'buffer-name (buffer-list))`
+- Execute commands: `(call-interactively 'command-name)` or `(command-name)`
+- Access variables: `variable-name` or `(setq variable-name value)`
 
-### Buffer Operations
-
-- **`get-buffer-content`** - Read buffer contents
-- **`set-buffer-content`** - Replace buffer contents
-- **`get-buffer-list`** - List all open buffers
-- **`switch-buffer`** - Change active buffer
-- **`get-major-mode`** - Get buffer's major mode
-
-### Cursor and Selection
-
-- **`get-point`** - Get cursor position information
-- **`goto-point`** - Move cursor to specific position
-- **`insert-at-point`** - Insert text at cursor
-- **`get-selection`** - Get selected text and region info
-
-### Window Management
-
-- **`get-window-configuration`** - Get window layout information
-
-## Security
-
-The server implements multiple security layers:
-
-### Permission System
-
-- Prompts for dangerous operations
-- Caches permission decisions
-- Audit trail of all actions
-
-### Input Validation
-
-- JSON Schema validation for tool inputs
-- Sanitization of string inputs
-- Protection against code injection
-
-### Execution Sandboxing
-
-- Timeout protection (30 seconds default)
-- Memory usage monitoring
-- Restricted function access
-
-### Dangerous Functions
-
-The following functions require explicit permission:
-
-- File system operations (`delete-file`, `write-region`)
-- Process execution (`shell-command`, `call-process`)
-- System functions (`kill-emacs`, `server-start`)
+**Planned tools** for future implementation include dedicated functions for buffer management (`get-buffer-content`, `set-buffer-content`, `get-buffer-list`), navigation (`get-point`, `goto-point`, `insert-at-point`), variable access (`get-variable`, `set-variable`), and window operations (`get-window-configuration`).
 
 ## Configuration
 
-### Enable/Disable Permission Prompts
+**Socket naming strategies:** Choose how sockets are named based on your setup:
 
 ```elisp
-(mcp-server-security-set-prompting nil)  ; Disable prompts (deny by default)
-(mcp-server-security-set-prompting t)    ; Enable prompts (default)
+(setq mcp-server-socket-name nil)       ; Default: emacs-mcp-server.sock
+(setq mcp-server-socket-name 'user)     ; User-based: emacs-mcp-server-{username}.sock  
+(setq mcp-server-socket-name 'session)  ; Session-based: emacs-mcp-server-{username}-{pid}.sock
+(setq mcp-server-socket-name "custom")   ; Custom: emacs-mcp-server-custom.sock
 ```
 
-### Grant/Deny Permissions
+**Other configuration options:**
 
 ```elisp
-(mcp-server-security-grant-permission 'delete-file)
-(mcp-server-security-deny-permission 'shell-command)
+;; Custom socket directory
+(setq mcp-server-socket-directory "~/.config/emacs-mcp/")
+
+;; Auto-start server when Emacs starts
+(add-hook 'emacs-startup-hook #'mcp-server-start-unix)
+
+;; Enable debug logging
+(setq mcp-server-debug t)
 ```
 
-### Add Custom Dangerous Functions
+## Security
 
-```elisp
-(mcp-server-security-add-dangerous-function 'my-dangerous-function)
-```
+The server implements comprehensive security measures including permission prompts for dangerous operations (file system access, process execution), caches decisions for the session, maintains an audit trail of all operations, validates all tool inputs using JSON Schema, protects against code injection, and limits operations to 30 seconds by default.
 
-## Examples
+Operations requiring explicit permission include file system operations (`delete-file`, `write-region`), process execution (`shell-command`, `call-process`), and system functions (`kill-emacs`, `server-start`).
 
-### Basic Tool Usage
+## Management Commands
 
-Execute elisp code:
+**Server control:** `M-x mcp-server-start-unix` (start), `M-x mcp-server-stop` (stop), `M-x mcp-server-restart` (restart), `M-x mcp-server-status` (show status)
 
+**Debugging and monitoring:** `M-x mcp-server-toggle-debug` (toggle debug logging), `M-x mcp-server-list-clients` (show connected clients), `M-x mcp-server-get-socket-path` (show socket path)
+
+**Security management:** `M-x mcp-server-security-show-audit-log` (view security log), `M-x mcp-server-security-show-permissions` (view cached permissions)
+
+## Client Integration
+
+### Claude Desktop
+
+**Using shell wrapper (recommended):**
 ```json
 {
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "eval-elisp",
-    "arguments": {
-      "expression": "(+ 1 2 3)"
+  "mcpServers": {
+    "emacs": {
+      "command": "/path/to/mcp-wrapper.sh",
+      "args": ["$HOME/.emacs.d/.local/cache/emacs-mcp-server.sock"],
+      "transport": "stdio"
     }
   }
 }
 ```
 
-Read buffer contents:
-
+**Using Python wrapper:**
 ```json
 {
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "tools/call",
-  "params": {
-    "name": "get-buffer-content",
-    "arguments": {
-      "buffer": "*scratch*"
+  "mcpServers": {
+    "emacs": {
+      "command": "python3",
+      "args": ["/path/to/mcp-wrapper.py", "$HOME/.emacs.d/.local/cache/emacs-mcp-server.sock"],
+      "transport": "stdio"
     }
   }
 }
 ```
 
-Move cursor:
-
+**Direct socat (simple but less robust):**
 ```json
 {
-  "jsonrpc": "2.0",
-  "id": 3,
-  "method": "tools/call",
-  "params": {
-    "name": "goto-point",
-    "arguments": {
-      "position": 100
+  "mcpServers": {
+    "emacs": {
+      "command": "socat",
+      "args": ["-", "UNIX-CONNECT:$HOME/.emacs.d/.local/cache/emacs-mcp-server.sock"],
+      "transport": "stdio"
     }
   }
 }
 ```
 
-## Development
+### Claude CLI 
 
-### File Structure
-
-```
-mcp-server/
-├── mcp-server.el              # Main entry point
-├── mcp-server-protocol.el     # MCP protocol implementation
-├── mcp-server-tools.el        # Tool registry and execution
-├── mcp-server-security.el     # Security and sandboxing
-├── mcp-server-emacs-tools.el  # Emacs-specific tools
-└── README.md                        # This file
+```bash
+# Using shell wrapper
+claude mcp add emacs ~/path-to/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the python script
+claude mcp add emacs ~/path-to/mcp-wrapper.sh ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the bash script
+claude mcp add emacs-direct -- socat - UNIX-CONNECT:$HOME/.config/emacs/.local/cache/emacs-mcp-server.sock # Uses socat directly
 ```
 
-### Adding New Tools
+### Wrapper Scripts
 
-Register a new tool:
+**Shell wrapper (`mcp-wrapper.sh`)** - Lightweight, uses socat, good for simple integrations:
+```bash
+./mcp-wrapper.sh ~/.emacs.d/.local/cache/emacs-mcp-server.sock
+./mcp-wrapper.sh /custom/path/emacs-mcp-server-myinstance.sock
+EMACS_MCP_DEBUG=1 ./mcp-wrapper.sh ~/.emacs.d/.local/cache/emacs-mcp-server.sock
+```
+
+**Python wrapper (`mcp-wrapper.py`)** - More robust error handling, better cross-platform support:
+```bash
+./mcp-wrapper.py ~/.emacs.d/.local/cache/emacs-mcp-server.sock
+./mcp-wrapper.py --list-sockets
+EMACS_MCP_DEBUG=1 ./mcp-wrapper.py ~/.emacs.d/.local/cache/emacs-mcp-server.sock
+```
+
+**Environment variables** for both wrappers:
+- `EMACS_MCP_TIMEOUT`: Connection timeout in seconds (default: 10)
+- `EMACS_MCP_DEBUG`: Enable debug logging
+
+### Custom MCP Client
+
+For your own MCP client implementation:
+
+```python
+import socket
+import json
+
+# Connect to Emacs MCP Server
+sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+sock.connect("~/.emacs.d/.local/cache/emacs-mcp-server.sock")
+
+# Send initialization
+init_msg = {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+        "protocolVersion": "draft",
+        "capabilities": {},
+        "clientInfo": {"name": "my-client", "version": "1.0.0"}
+    }
+}
+
+sock.send((json.dumps(init_msg) + "\n").encode())
+response = sock.recv(4096).decode()
+print(response)
+```
+
+## Testing and Development
+
+**Quick test:** Run `./test/scripts/test-runner.sh` or test a specific socket with `./test/integration/test-unix-socket-fixed.sh ~/.emacs.d/.local/cache/emacs-mcp-server.sock`
+
+**Adding custom tools:**
 
 ```elisp
 (mcp-server-tools-register
  "my-tool"
- "My Custom Tool"
- "Description of what it does"
+ "My Custom Tool"  
+ "Description of what this tool does"
  '((type . "object")
    (properties . ((param . ((type . "string")))))
    (required . ["param"]))
@@ -234,64 +249,70 @@ Register a new tool:
      (format "Result: %s" param))))
 ```
 
-### Testing
-
-Start the server and test with a simple MCP client:
-
-```elisp
-;; Start server
-(mcp-server-start t)  ; t enables debug logging
-
-;; Send test message
-(mcp-server-protocol-process-input
- "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}\n")
-```
-
 ## Troubleshooting
 
-### Enable Debug Logging
+**Server won't start:** Check if socket directory exists and is writable, verify no other server is using the same socket path, check Emacs *Messages* buffer for error details.
 
+**Socket not found:**
+1. Check if Emacs MCP Server is running: `M-x mcp-server-status`
+2. Verify socket path: `M-x mcp-server-get-socket-path` 
+3. List available sockets: `./mcp-wrapper.sh --list-sockets`
+
+**Connection refused:**
+1. Check socket permissions: `ls -la ~/.emacs.d/.local/cache/emacs-mcp-server*.sock`
+2. Test socket connectivity: `echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | socat - UNIX-CONNECT:~/.emacs.d/.local/cache/emacs-mcp-server.sock`
+
+**MCP client issues:**
+1. Verify client configuration: Check JSON syntax and file paths
+2. Check client logs: Most MCP clients provide debug logging
+3. Test wrapper independently: Run wrapper script manually to verify connection
+
+**Permission errors:** View audit log with `M-x mcp-server-security-show-audit-log`, grant specific permissions with `(mcp-server-security-grant-permission 'function-name)`, or disable prompting with `(mcp-server-security-set-prompting nil)`.
+
+**Debug mode:** Enable with `(setq mcp-server-debug t)` or toggle with `M-x mcp-server-toggle-debug`.
+
+## Advanced Configuration
+
+**Multiple Emacs instances:**
 ```elisp
-(mcp-server-toggle-debug)
+;; Instance 1
+(setq mcp-server-socket-name "instance-1")
+(mcp-server-start-unix)
+
+;; Instance 2  
+(setq mcp-server-socket-name "instance-2")
+(mcp-server-start-unix)
 ```
 
-### Check Server Status
-
+**Dynamic socket naming:**
 ```elisp
-(mcp-server-status)
+(setq mcp-server-socket-name 
+      (lambda () 
+        (format "emacs-%s-%d" (system-name) (emacs-pid))))
 ```
 
-### View Security Audit Log
+**Performance tips:**
+- Use predictable naming to avoid socket discovery overhead
+- Keep connections alive and reuse when possible  
+- Monitor clients with `M-x mcp-server-list-clients`
+- Stop unused servers to free resources
 
-```elisp
-M-x mcp-server-security-show-audit-log
+## Architecture
+
+The server uses a modular design with a transport layer (Unix domain sockets, TCP planned), protocol layer (JSON-RPC 2.0 message handling), tool registry (Elisp functions exposed as MCP tools), and security layer (permission management and validation).
+
 ```
-
-### View Cached Permissions
-
-```elisp
-M-x mcp-server-security-show-permissions
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   LLM Client    │────│  Unix Socket     │────│  Emacs MCP      │
+│ (Claude/Python) │    │  Transport       │    │  Server         │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                       ┌──────────────────┐
+                       │   MCP Tools      │
+                       │   (Elisp Funcs)  │
+                       └──────────────────┘
 ```
-
-## Contributing
-
-1. Follow the existing code style and patterns
-2. Add appropriate security checks for new tools
-3. Include JSON schemas for tool inputs
-4. Update documentation for new features
-5. Test with actual MCP clients
 
 ## License
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-
-## Architecture
-
-The server is built with a modular architecture:
-
-- **Protocol Layer**: Handles JSON-RPC 2.0 and MCP lifecycle
-- **Tool System**: Manages tool registration and execution
-- **Security Layer**: Provides sandboxing and permission control
-- **Emacs Interface**: Exposes Emacs functionality as tools
-
-This design allows for easy extension and maintenance while ensuring security and reliability.

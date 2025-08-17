@@ -12,7 +12,7 @@
 # Usage:
 #   ./test-unix-socket.sh [socket_path]
 #   
-#   If socket_path is not provided, the script will attempt to discover it automatically.
+#   If socket_path is not provided, the script will search for socket files.
 
 set -euo pipefail
 
@@ -320,7 +320,7 @@ OPTIONS:
     --eval EXPR         Evaluate specific elisp expression
 
 EXAMPLES:
-    $0                                  # Auto-discover socket and run full test
+    $0                                  # Use fallback socket search and run full test
     $0 /tmp/custom.sock                # Use specific socket path
     $0 -s /tmp/mcp-server-12345.sock  # Specify socket explicitly
     $0 -i                              # Interactive mode

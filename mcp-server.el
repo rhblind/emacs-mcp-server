@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2025
 
-;; Author: Claude Code + User
+;; Author: Claude Code + Rolf Håvard Blindheim<rhblind@gmail.com>
 ;; Keywords: mcp, protocol, integration, tools
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "28.1"))
@@ -95,17 +95,18 @@
 This controls how the socket file is named:
 
 - nil (default): Use simple default naming (emacs-mcp-server.sock)
-- string: Use as socket name (e.g., \"primary\" → emacs-mcp-server-primary.sock)  
+- string: Use as socket name (emacs-mcp-server-{string-value}.sock)
 - 'user: Use username-based naming (emacs-mcp-server-{username}.sock)
-- 'session: Use session-based naming for multiple instances
+- 'session: Use session-based naming for multiple instances (emacs-mcp-server-{username}-{pid}.sock)
 - function: Call function to generate socket name dynamically
 
 Examples:
-  (setq mcp-server-socket-name nil)            ; Default: emacs-mcp-server.sock
-  (setq mcp-server-socket-name \"primary\")     ; Fixed name
-  (setq mcp-server-socket-name 'user)          ; User-based
-  (setq mcp-server-socket-name 
-        (lambda () (format \"emacs-%s\" (system-name)))) ; Dynamic"
+(setq mcp-server-socket-name nil)                      ; Default: emacs-mcp-server.sock
+(setq mcp-server-socket-name \"my-instance\")          ; Custom name
+(setq mcp-server-socket-name 'user)                    ; User-based
+(setq mcp-server-socket-name 'session)                 ; Session-based
+(setq mcp-server-socket-name
+      (lambda () (format \"emacs-%s\" (system-name)))) ; Dynamic"
   :type '(choice (const :tag "Default (emacs-mcp-server.sock)" nil)
           (string :tag "Fixed socket name")
           (const :tag "Username-based" user)
@@ -179,7 +180,7 @@ SOCKET-PATH specifies custom socket location."
 (defun mcp-server-start-tcp (&optional debug host port)
   "Start MCP server with TCP transport.
 If DEBUG is non-nil, enable debug logging.
-HOST and PORT specify the bind address (currently not implemented)."
+HOST and PORT specify the bind address (planned for future implementation)."
   (interactive "P")
   (mcp-server--start-with-transport "tcp" debug host port))
 
@@ -381,7 +382,7 @@ If DEBUG is non-nil, enable debug logging."
 
 (defun mcp-server--handle-resources-list (id params client-id)
   "Handle resources/list request with ID and PARAMS from CLIENT-ID.
-Currently returns empty list - resources not yet implemented."
+Returns empty list as resources feature is planned for future implementation."
   (mcp-server--debug "Resources list request from %s: %s" client-id params)
   
   (mcp-server--send-response
@@ -390,14 +391,14 @@ Currently returns empty list - resources not yet implemented."
 
 (defun mcp-server--handle-resources-read (id params client-id)
   "Handle resources/read request with ID and PARAMS from CLIENT-ID.
-Currently returns error - resources not yet implemented."
+Returns error as resources feature is planned for future implementation."
   (mcp-server--debug "Resources read request from %s: %s" client-id params)
   
   (mcp-server--send-error client-id id -32002 "Resource not found" params))
 
 (defun mcp-server--handle-prompts-list (id params client-id)
   "Handle prompts/list request with ID and PARAMS from CLIENT-ID.
-Currently returns empty list - prompts not yet implemented."
+Returns empty list as prompts feature is planned for future implementation."
   (mcp-server--debug "Prompts list request from %s: %s" client-id params)
   
   (mcp-server--send-response
@@ -586,7 +587,7 @@ SOCKET-NAME can be:
   "Show current socket naming configuration."
   (interactive)
   (let ((config mcp-server-socket-name)
-        (directory (or mcp-server-socket-directory "auto-detect (~/.emacs.d/.local/cache/)"))
+        (directory (or mcp-server-socket-directory "~/.emacs.d/.local/cache/"))
         (conflict-res mcp-server-socket-conflict-resolution))
     
     (message "Socket Configuration:\n  Name: %s\n  Directory: %s\n  Conflict Resolution: %s"

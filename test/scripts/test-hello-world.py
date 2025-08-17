@@ -8,7 +8,7 @@ and sends a "Hello, world!" message to the *Messages* buffer.
 Usage:
     python test-hello-world.py [socket_path]
 
-If socket_path is not provided, it will attempt to discover the socket automatically.
+The socket_path should be the full path to the Unix socket file created by the MCP server.
 """
 
 import socket
@@ -21,7 +21,7 @@ from typing import Optional
 
 
 def discover_socket() -> str:
-    """Attempt to discover the Unix socket path automatically."""
+    """Fallback function to locate socket files."""
     runtime_dir = os.getenv('XDG_RUNTIME_DIR', '/tmp')
     socket_dir = os.path.join(runtime_dir, 'emacs-mcp-server')
     

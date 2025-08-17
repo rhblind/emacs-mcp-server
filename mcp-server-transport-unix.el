@@ -72,7 +72,7 @@
 
 (defun mcp-server-transport-unix--build-socket-path ()
   "Build socket path based on configuration variables."
-  (let* ((base-dir (mcp-server-transport-unix--get-socket-directory))
+  (let* ((base-dir (string-trim-right (mcp-server-transport-unix--get-socket-directory) "/"))
          (socket-name (mcp-server-transport-unix--resolve-socket-name))
          (socket-path (if (string-empty-p socket-name)
                           (format "%s/emacs-mcp-server.sock" base-dir)

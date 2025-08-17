@@ -13,7 +13,7 @@
 (require 'mcp-server)
 
 ;; Test configuration variables
-(defvar mcp-test-socket-name "test-primary"
+(defvar mcp-test-socket-name "test-instance"
   "Socket name to use for testing.")
 
 (defvar mcp-test-debug t
@@ -107,43 +107,45 @@
     (sleep-for 1)))
 
 (defun mcp-test-validate-refactoring ()
-  "Validate that the refactoring worked correctly."
+  "Validate function and variable naming consistency.
+This function checks that all expected function and variable names exist
+and that no deprecated names remain from previous package versions."
   (interactive)
-  (message "=== Validating MCP Server Refactoring ===")
+  (message "=== Validating MCP Server Function Names ===")
   
-  ;; Test that old function names don't exist
-  (let ((old-functions '(emacs-mcp-server-start
-                         emacs-mcp-server-stop
-                         emacs-mcp-server-status
-                         emacs-mcp-server-start-unix)))
-    (dolist (func old-functions)
+  ;; Test that deprecated function names don't exist
+  (let ((deprecated-functions '(emacs-mcp-server-start
+                                emacs-mcp-server-stop
+                                emacs-mcp-server-status
+                                emacs-mcp-server-start-unix)))
+    (dolist (func deprecated-functions)
       (if (fboundp func)
-          (message "WARNING: Old function still exists: %s" func)
-        (message "✓ Old function correctly removed: %s" func))))
+          (message "WARNING: Deprecated function still exists: %s" func)
+        (message "✓ Deprecated function not found: %s" func))))
   
-  ;; Test that new function names exist
-  (let ((new-functions '(mcp-server-start
-                         mcp-server-stop
-                         mcp-server-status
-                         mcp-server-start-unix
-                         mcp-server-set-socket-name
-                         mcp-server-show-socket-config)))
-    (dolist (func new-functions)
+  ;; Test that current function names exist
+  (let ((current-functions '(mcp-server-start
+                             mcp-server-stop
+                             mcp-server-status
+                             mcp-server-start-unix
+                             mcp-server-set-socket-name
+                             mcp-server-show-socket-config)))
+    (dolist (func current-functions)
       (if (fboundp func)
-          (message "✓ New function exists: %s" func)
-        (message "ERROR: New function missing: %s" func))))
+          (message "✓ Function exists: %s" func)
+        (message "ERROR: Function missing: %s" func))))
   
   ;; Test variables
-  (let ((new-variables '(mcp-server-socket-name
-                         mcp-server-debug
-                         mcp-server-running
-                         mcp-server-current-transport)))
-    (dolist (var new-variables)
+  (let ((expected-variables '(mcp-server-socket-name
+                              mcp-server-debug
+                              mcp-server-running
+                              mcp-server-current-transport)))
+    (dolist (var expected-variables)
       (if (boundp var)
           (message "✓ Variable exists: %s = %s" var (symbol-value var))
         (message "ERROR: Variable missing: %s" var))))
   
-  (message "=== Refactoring validation complete ==="))
+  (message "=== Function name validation complete ==="))
 
 ;; Interactive test commands
 (defun mcp-test-interactive ()
@@ -155,7 +157,7 @@
   (message "  M-x mcp-test-start-server - Start server")
   (message "  M-x mcp-test-stop-server  - Stop server")
   (message "  M-x mcp-test-server-info  - Show server information")
-  (message "  M-x mcp-test-validate-refactoring - Check refactoring")
+  (message "  M-x mcp-test-validate-refactoring - Validate function names")
   (message "")
   (message "Run the start command, then use external test scripts to validate.")
   (mcp-test-validate-refactoring))

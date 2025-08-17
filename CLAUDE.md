@@ -79,34 +79,18 @@ M-x mcp-server-toggle-debug
 
 The server supports multiple socket naming strategies via `mcp-server-socket-name`:
 
-- **Fixed naming** (`"primary"`) - Creates `/tmp/mcp-server-primary.sock` (best for MCP clients)
-- **User-based** (`'user`) - Creates `/tmp/mcp-server-{username}.sock` (multi-user systems)
-- **Session-based** (`'session`) - Creates `/tmp/mcp-server-{username}-{pid}.sock` (multiple instances)
+- **Default naming** (`nil`) - Creates `emacs-mcp-server.sock` (recommended for most users)
+- **User-based** (`'user`) - Creates `emacs-mcp-server-{username}.sock` (multi-user systems)
+- **Session-based** (`'session`) - Creates `emacs-mcp-server-{username}-{pid}.sock` (multiple instances)
 - **Custom function** - Dynamic naming via lambda function
-- **Default** (`nil`) - PID-based naming for backward compatibility
+- **Custom string** - Fixed naming like `"my-instance"` creates `emacs-mcp-server-my-instance.sock`
 
 ## MCP Tool Registry
 
-The server exposes these core tools:
+The server exposes the following tool:
 
 ### Elisp Execution
 - `eval-elisp` - Execute arbitrary Elisp expressions safely
-- `get-variable` / `set-variable` - Access Emacs variables
-- `call-command` - Execute interactive commands
-
-### Buffer Operations  
-- `get-buffer-content` / `set-buffer-content` - Read/write buffer contents
-- `get-buffer-list` - List all open buffers
-- `switch-buffer` - Change active buffer
-- `get-major-mode` - Get buffer's major mode
-
-### Cursor and Navigation
-- `get-point` / `goto-point` - Position management
-- `insert-at-point` - Text insertion
-- `get-selection` - Selected text and region info
-
-### System Information
-- `get-window-configuration` - Window layout details
 
 ## Security Model
 
@@ -134,7 +118,7 @@ The server exposes these core tools:
   "mcpServers": {
     "emacs": {
       "command": "/path/to/mcp-wrapper.sh",
-      "args": ["primary"],
+      "args": ["~/.emacs.d/.local/cache/emacs-mcp-server.sock"],
       "transport": "stdio"
     }
   }
@@ -154,13 +138,13 @@ if client.connect() and client.initialize():
 ### Shell Testing
 ```bash
 # Test full functionality
-./examples/test-unix-socket-fixed.sh
+./test/integration/test-unix-socket-fixed.sh
 
 # Test with custom socket
-./examples/test-unix-socket-fixed.sh -s /tmp/custom.sock
+./test/integration/test-unix-socket-fixed.sh -s /tmp/custom.sock
 
 # Interactive testing
-./examples/test-unix-socket-fixed.sh -i
+./test/integration/test-unix-socket-fixed.sh -i
 ```
 
 ## Development Workflow
@@ -216,11 +200,8 @@ mcp-server/
 │   └── integration/                 # Integration test scripts
 │       ├── test-unix-socket-fixed.sh # Fixed Unix socket tests
 │       ├── test-unix-socket.sh      # Original socket tests
-└── examples/                        # Client examples and integrations
-    ├── mcp-client-configs/          # MCP client configuration examples
-    ├── unix-socket-client.py        # Python client implementation
-    ├── mcp-wrapper.sh              # Shell wrapper for MCP clients
-    └── test-unix-socket-fixed.sh   # Socket communication test
+├── mcp-wrapper.py                   # Python wrapper for MCP clients  
+└── mcp-wrapper.sh                   # Shell wrapper for MCP clients
 ```
 
 ## Multi-Client Architecture

@@ -9,7 +9,7 @@ set -euo pipefail
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEST_SOCKET_NAME="test-primary"
+TEST_SOCKET_NAME="test-instance"
 TEST_TIMEOUT=5
 EMACS_BIN="${EMACS:-emacs}"
 VERBOSE=false
@@ -213,7 +213,7 @@ test_socket_exists() {
 
 # Test 2: Shell script communication
 test_shell_script() {
-    local test_script="$SCRIPT_DIR/examples/test-unix-socket-fixed.sh"
+    local test_script="$SCRIPT_DIR/../integration/test-unix-socket-fixed.sh"
     
     if [[ ! -x "$test_script" ]]; then
         log_error "Test script not executable: $test_script"
@@ -248,7 +248,7 @@ test_shell_script() {
 
 # Test 3: Python client communication  
 test_python_client() {
-    local python_client="$SCRIPT_DIR/examples/unix-socket-client.py"
+    local python_client="$SCRIPT_DIR/test-hello-world.py"
     
     if [[ ! -f "$python_client" ]]; then
         log_error "Python client not found: $python_client"
@@ -269,8 +269,8 @@ test_python_client() {
 
 # Test 4: MCP wrapper scripts
 test_mcp_wrappers() {
-    local shell_wrapper="$SCRIPT_DIR/examples/mcp-client-configs/mcp-wrapper.sh"
-    local python_wrapper="$SCRIPT_DIR/examples/mcp-client-configs/mcp-wrapper.py"
+    local shell_wrapper="$SCRIPT_DIR/../../mcp-wrapper.sh"
+    local python_wrapper="$SCRIPT_DIR/../../mcp-wrapper.py"
     
     # Test shell wrapper
     if [[ -x "$shell_wrapper" ]]; then
@@ -297,7 +297,7 @@ test_mcp_wrappers() {
         log_warning "Python wrapper not found: $python_wrapper"
     fi
     
-    return 0  # Don't fail on wrapper tests for now
+    return 0  # Wrapper tests are optional
 }
 
 # Test 5: MCP protocol compliance
@@ -504,7 +504,7 @@ main() {
         log_info "Socket path: $SOCKET_PATH"
         log_info "Press Ctrl+C to stop."
         
-        # Disable cleanup trap temporarily
+        # Disable cleanup trap during keep-running mode
         trap - EXIT
         
         # Wait for interrupt
@@ -512,7 +512,7 @@ main() {
             sleep 1
         done
         
-        # Re-enable cleanup
+        # Re-enable cleanup after keep-running mode
         trap cleanup EXIT INT TERM
     fi
     

@@ -87,17 +87,17 @@ Environment Variables:
   EMACS_MCP_DEBUG          Enable debug logging
 
 Examples:
-  $0 ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
+  $0 ~/.emacs.d/.local/cache/emacs-mcp-server.sock
   $0 /tmp/emacs-mcp-server-myinstance.sock
   
-  EMACS_MCP_DEBUG=1 $0 ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
+  EMACS_MCP_DEBUG=1 $0 ~/.emacs.d/.local/cache/emacs-mcp-server.sock
   
 For use with Claude Desktop, add to your config:
 {
   "mcpServers": {
     "emacs": {
-      "command": "/path/to/emacs-mcp-wrapper.sh",
-      "args": ["~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock"],
+      "command": "/path/to/mcp-wrapper.sh",
+      "args": ["~/.emacs.d/.local/cache/emacs-mcp-server.sock"],
       "transport": "stdio"
     }
   }

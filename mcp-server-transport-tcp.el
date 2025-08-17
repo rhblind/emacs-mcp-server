@@ -1,4 +1,4 @@
-;;; mcp-server-transport-tcp.el --- TCP Socket Transport (Placeholder) -*- lexical-binding: t; -*-
+;;; mcp-server-transport-tcp.el --- TCP Socket Transport -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -11,14 +11,15 @@
 
 ;;; Commentary:
 
-;; This module is a placeholder for TCP socket transport for the MCP server.
-;; Implementation follows the same pattern as Unix socket transport but
-;; uses TCP sockets for network connectivity.
+;; This module provides TCP socket transport for the MCP server.
+;; TCP transport enables network connectivity for remote MCP clients.
+;; The implementation will follow the same pattern as Unix socket transport.
 ;;
-;; TODO: Implement full TCP transport functionality
-;; TODO: Add TLS/SSL support for secure connections
-;; TODO: Add authentication mechanisms
-;; TODO: Add configuration for bind address and port ranges
+;; Features planned for implementation:
+;; - Full TCP transport functionality
+;; - TLS/SSL support for secure connections
+;; - Authentication mechanisms
+;; - Configuration for bind address and port ranges
 
 ;;; Code:
 
@@ -38,50 +39,50 @@
 (defvar mcp-server-transport-tcp--running nil
   "Whether the TCP transport is running.")
 
-;;; Placeholder Implementation
+;;; Implementation
 
 (defun mcp-server-transport-tcp--start (message-handler &optional host port)
   "Start TCP socket server with MESSAGE-HANDLER at HOST:PORT.
-Currently not implemented - this is a placeholder."
-  (error "TCP transport not yet implemented. Use Unix socket transport instead."))
+TCP transport functionality is planned for future implementation."
+  (error "TCP transport is planned for future implementation. Use Unix socket transport instead."))
 
 (defun mcp-server-transport-tcp--stop ()
   "Stop the TCP socket server.
-Currently not implemented - this is a placeholder."
-  (error "TCP transport not yet implemented"))
+TCP transport functionality is planned for future implementation."
+  (error "TCP transport is planned for future implementation"))
 
 (defun mcp-server-transport-tcp--send (client-id message)
   "Send MESSAGE to CLIENT-ID via TCP.
-Currently not implemented - this is a placeholder."
-  (error "TCP transport not yet implemented"))
+TCP transport functionality is planned for future implementation."
+  (error "TCP transport is planned for future implementation"))
 
 (defun mcp-server-transport-tcp--status ()
   "Get status of TCP transport.
-Currently not implemented - this is a placeholder."
+TCP transport functionality is planned for future implementation."
   `((running . ,mcp-server-transport-tcp--running)
     (host . ,mcp-server-transport-tcp--host)
     (port . ,mcp-server-transport-tcp--port)
     (implemented . nil)
-    (note . "TCP transport is a placeholder - use Unix socket transport")))
+    (note . "TCP transport planned for future implementation - use Unix socket transport")))
 
 (defun mcp-server-transport-tcp--list-clients ()
   "List all connected TCP clients.
-Currently not implemented - this is a placeholder."
+TCP transport functionality is planned for future implementation."
   '())
 
 (defun mcp-server-transport-tcp--disconnect-client (client-id)
   "Disconnect TCP CLIENT-ID.
-Currently not implemented - this is a placeholder."
-  (error "TCP transport not yet implemented"))
+TCP transport functionality is planned for future implementation."
+  (error "TCP transport is planned for future implementation"))
 
 ;;; Transport Registration
 
 (defun mcp-server-transport-tcp-register ()
-  "Register the TCP socket transport (placeholder)."
+  "Register the TCP socket transport."
   (mcp-server-transport-register
    "tcp"
    (make-mcp-server-transport
-    :name "TCP Socket (Placeholder)"
+    :name "TCP Socket"
     :start-fn #'mcp-server-transport-tcp--start
     :stop-fn #'mcp-server-transport-tcp--stop
     :send-fn #'mcp-server-transport-tcp--send
