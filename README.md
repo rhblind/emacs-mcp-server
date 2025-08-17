@@ -2,6 +2,11 @@
 
 Connect Large Language Models directly to your Emacs environment! This MCP (Model Context Protocol) server exposes Emacs functionality through standardized tools, allowing LLMs like Claude to read and modify your buffers, execute elisp code, navigate files, and much more.
 
+<div align="center">
+  <img src="./demo/change-theme-demo.gif" alt="Change Theme Demo" width="45%" />
+  <img src="./demo/write-poem-demo.gif" alt="Write Poem Demo" width="45%" />
+</div>
+
 ## Quick Start
 
 **Installation:** Place the files in your Emacs configuration directory and add to your config:
