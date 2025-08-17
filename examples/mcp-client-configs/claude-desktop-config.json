@@ -4,36 +4,44 @@
       "command": "socat",
       "args": [
         "-",
-        "UNIX-CONNECT:/tmp/mcp-server-primary.sock"
-      ],
-      "transport": "stdio",
-      "env": {
-        "EMACS_MCP_SOCKET": "/tmp/mcp-server-primary.sock"
-      }
-    }
-  }
-}
-
-// Alternative configuration for user-based naming:
-{
-  "mcpServers": {
-    "emacs": {
-      "command": "socat", 
-      "args": [
-        "-",
-        "UNIX-CONNECT:/tmp/mcp-server-$USER.sock"
+        "UNIX-CONNECT:~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock"
       ],
       "transport": "stdio"
     }
   }
 }
 
-// Alternative using a wrapper script (recommended):
+// Alternative using the shell wrapper script (recommended):
 {
   "mcpServers": {
     "emacs": {
       "command": "/path/to/mcp-wrapper.sh",
-      "args": [],
+      "args": ["~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock"],
+      "transport": "stdio"
+    }
+  }
+}
+
+// Alternative using the Python wrapper script:
+{
+  "mcpServers": {
+    "emacs": {
+      "command": "python3",
+      "args": [
+        "/path/to/mcp-wrapper.py",
+        "~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock"
+      ],
+      "transport": "stdio"
+    }
+  }
+}
+
+// Custom socket location example:
+{
+  "mcpServers": {
+    "emacs": {
+      "command": "/path/to/mcp-wrapper.sh",
+      "args": ["/custom/path/emacs-mcp-server-myinstance.sock"],
       "transport": "stdio"
     }
   }

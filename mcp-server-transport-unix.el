@@ -64,36 +64,19 @@
       (mcp-server-transport-unix--build-socket-path)))
 
 (defun mcp-server-transport-unix--get-socket-directory ()
-  "Get the best directory for socket files based on platform and configuration."
-  (or 
-   ;; Use explicit configuration if set
-   mcp-server-socket-directory
-   
-   ;; Try XDG runtime directory (Linux/Unix standard)
-   (getenv "XDG_RUNTIME_DIR")
-   
-   ;; macOS: use user's cache directory
-   (when (eq system-type 'darwin)
-     (let ((cache-dir "~/Library/Caches/emacs-mcp-server"))
-       (when (file-directory-p (expand-file-name "~/Library/Caches"))
-         (unless (file-exists-p (expand-file-name cache-dir))
-           (make-directory (expand-file-name cache-dir) t))
-         (expand-file-name cache-dir))))
-   
-   ;; Follow Emacs server convention
-   (let ((emacs-server-dir (expand-file-name "~/.emacs.d/emacs-mcp-server")))
-     (unless (file-exists-p emacs-server-dir)
-       (make-directory emacs-server-dir t))
-     emacs-server-dir)
-   
-   ;; Final fallback to /tmp
-   "/tmp"))
+  "Get the directory for socket files from configuration."
+  (let ((dir (expand-file-name mcp-server-socket-directory)))
+    (unless (file-exists-p dir)
+      (make-directory dir t))
+    dir))
 
 (defun mcp-server-transport-unix--build-socket-path ()
   "Build socket path based on configuration variables."
   (let* ((base-dir (mcp-server-transport-unix--get-socket-directory))
          (socket-name (mcp-server-transport-unix--resolve-socket-name))
-         (socket-path (format "%s/emacs-mcp-server-%s.sock" base-dir socket-name)))
+         (socket-path (if (string-empty-p socket-name)
+                          (format "%s/emacs-mcp-server.sock" base-dir)
+                        (format "%s/emacs-mcp-server-%s.sock" base-dir socket-name))))
     
     ;; Handle conflicts if socket already exists
     (if (file-exists-p socket-path)
@@ -118,9 +101,9 @@
    ((eq mcp-server-socket-name 'session)
     (format "%s-%d" (user-login-name) (emacs-pid)))
    
-   ;; nil: fallback to PID-based (backward compatibility)
+   ;; nil: use simple default name (no suffix)
    (t
-    (number-to-string (emacs-pid)))))
+    "")))
 
 (defun mcp-server-transport-unix--handle-socket-conflict (socket-path)
   "Handle socket conflict based on configuration."
@@ -355,6 +338,10 @@
                :filter #'mcp-server-transport-unix--server-filter
                :sentinel #'mcp-server-transport-unix--server-sentinel
                :coding 'utf-8))
+        
+        ;; Set proper permissions on socket file (read/write for owner only, not executable)
+        (when (file-exists-p mcp-server-transport-unix--socket-path)
+          (set-file-modes mcp-server-transport-unix--socket-path #o600))
         
         (setq mcp-server-transport-unix--running t)
         (mcp-server-transport-unix--info "Unix socket MCP server started at: %s" mcp-server-transport-unix--socket-path))

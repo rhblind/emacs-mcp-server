@@ -94,29 +94,30 @@
 
 This controls how the socket file is named:
 
-- nil (default): Use PID-based naming for backward compatibility
-- string: Use as socket name (e.g., \"primary\" → mcp-server-primary.sock)  
-- 'user: Use username-based naming (mcp-server-{username}.sock)
+- nil (default): Use simple default naming (emacs-mcp-server.sock)
+- string: Use as socket name (e.g., \"primary\" → emacs-mcp-server-primary.sock)  
+- 'user: Use username-based naming (emacs-mcp-server-{username}.sock)
 - 'session: Use session-based naming for multiple instances
 - function: Call function to generate socket name dynamically
 
 Examples:
+  (setq mcp-server-socket-name nil)            ; Default: emacs-mcp-server.sock
   (setq mcp-server-socket-name \"primary\")     ; Fixed name
   (setq mcp-server-socket-name 'user)          ; User-based
   (setq mcp-server-socket-name 
         (lambda () (format \"emacs-%s\" (system-name)))) ; Dynamic"
-  :type '(choice (const :tag "PID-based (default)" nil)
+  :type '(choice (const :tag "Default (emacs-mcp-server.sock)" nil)
           (string :tag "Fixed socket name")
           (const :tag "Username-based" user)
           (const :tag "Session-based" session)
           (function :tag "Dynamic function"))
   :group 'mcp-server)
 
-(defcustom mcp-server-socket-directory nil
+(defcustom mcp-server-socket-directory user-emacs-directory
   "Directory for socket files.
-If nil, uses XDG_RUNTIME_DIR or /tmp as fallback."
-  :type '(choice (const :tag "Auto-detect (/tmp or XDG_RUNTIME_DIR)" nil)
-          (directory :tag "Custom directory"))
+Defaults to `user-emacs-directory'. Users can customize this with:
+  (setq mcp-server-socket-directory \"~/my-socket-dir\")"
+  :type 'directory
   :group 'mcp-server)
 
 (defcustom mcp-server-socket-conflict-resolution 'warn
@@ -585,7 +586,7 @@ SOCKET-NAME can be:
   "Show current socket naming configuration."
   (interactive)
   (let ((config mcp-server-socket-name)
-        (directory (or mcp-server-socket-directory "auto-detect"))
+        (directory (or mcp-server-socket-directory "auto-detect (~/.emacs.d/.local/cache/)"))
         (conflict-res mcp-server-socket-conflict-resolution))
     
     (message "Socket Configuration:\n  Name: %s\n  Directory: %s\n  Conflict Resolution: %s"

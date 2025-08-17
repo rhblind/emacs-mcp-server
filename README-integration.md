@@ -15,9 +15,9 @@ This will start the MCP server listening on a Unix domain socket. The socket pat
 
 **Socket Directory (in order of preference):**
 1. `mcp-server-socket-directory` (if explicitly set)
-2. `$XDG_RUNTIME_DIR` (Linux/Unix standard)
-3. `~/Library/Caches/emacs-mcp-server/` (macOS)
-4. `~/.emacs.d/emacs-mcp-server/` (Emacs convention)
+2. `~/.emacs.d/.local/cache/` (Emacs cache directory - primary default)
+3. `~/Library/Caches/emacs-mcp-server/` (macOS fallback)
+4. `~/.emacs.d/emacs-mcp-server/` (Emacs convention fallback)
 5. `/tmp/` (final fallback)
 
 **Socket Names:**
@@ -25,6 +25,9 @@ This will start the MCP server listening on a Unix domain socket. The socket pat
 - Fixed naming: `emacs-mcp-server-primary.sock` (if configured)
 - User-based: `emacs-mcp-server-<username>.sock`
 - Session-based: `emacs-mcp-server-<username>-<pid>.sock`
+
+**Default Socket Location:**
+`~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock` (when using fixed naming)
 
 ### 2. Get the Socket Path
 
@@ -35,7 +38,7 @@ M-x mcp-server-get-socket-path
 
 ### 3. Connect a Client
 
-Use any of the provided client examples to connect and interact with the server.
+Use any of the provided client examples to connect and interact with the server. **Note**: All client scripts now require the full socket path as an argument, rather than just a socket name.
 
 ## Architecture Overview
 
@@ -220,20 +223,16 @@ The server exposes these MCP tools for LLM interaction:
 
 ```python
 #!/usr/bin/env python3
-from examples.unix-socket-client import EmacsMCPClient
+from examples.mcp_wrapper import EmacsMCPWrapper
 
-# Connect to server
-client = EmacsMCPClient()
-if client.connect() and client.initialize():
-    # List available tools
-    tools = client.list_tools()
-    print(f"Available tools: {[t['name'] for t in tools]}")
-    
-    # Evaluate Elisp
-    result = client.call_tool("eval-elisp", {"expression": "(buffer-name)"})
-    print(f"Current buffer: {result}")
-    
-    client.disconnect()
+# Connect to server using full socket path
+socket_path = "~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock"
+wrapper = EmacsMCPWrapper(socket_path)
+
+# Test connection
+if wrapper._validate_socket():
+    print("Socket is available")
+    # Use wrapper.run() for actual MCP communication
 ```
 
 ### Shell Script Testing
@@ -248,25 +247,22 @@ if client.connect() and client.initialize():
 # Keep server running for manual testing
 ./test/scripts/test-runner.sh -k
 
-# Test Unix socket communication
-./test/integration/test-unix-socket-fixed.sh
+# Test Unix socket communication (requires full socket path)
+./test/integration/test-unix-socket-fixed.sh ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
 
-# Interactive mode
-./test/integration/test-unix-socket-fixed.sh -i
+# Use wrapper scripts with full paths
+./examples/mcp-client-configs/mcp-wrapper.sh ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
 
-# Test specific expression
-./test/integration/test-unix-socket-fixed.sh --eval "(+ 1 2 3)"
-
-# Use custom socket path
-./test/integration/test-unix-socket-fixed.sh -s /tmp/custom.sock
+# Python wrapper with full path
+python3 ./examples/mcp-client-configs/mcp-wrapper.py ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
 ```
 
 ### Raw Socket Communication
 
 ```bash
-# Using socat directly (adjust path to your actual socket)
+# Using socat directly with full socket path
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | \
-    socat - UNIX-CONNECT:~/Library/Caches/emacs-mcp-server/emacs-mcp-server-12345.sock
+    socat - UNIX-CONNECT:~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
 ```
 
 ## MCP Protocol Flow
@@ -429,21 +425,21 @@ Choose the best naming strategy for your use case:
 #### Fixed Names (Best for MCP clients)
 ```elisp
 (setq mcp-server-socket-name "primary")
-;; Creates: {socket-dir}/emacs-mcp-server-primary.sock
+;; Creates: ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock (default location)
 ```
 **Use when**: Single Emacs instance, MCP client integration
 
 #### User-based Names (Best for multi-user systems)
 ```elisp
 (setq mcp-server-socket-name 'user)
-;; Creates: {socket-dir}/emacs-mcp-server-{username}.sock
+;; Creates: ~/.emacs.d/.local/cache/emacs-mcp-server-{username}.sock (default location)
 ```
 **Use when**: Multiple users on same system
 
 #### Session-based Names (Best for multiple instances)
 ```elisp
 (setq mcp-server-socket-name 'session)
-;; Creates: {socket-dir}/emacs-mcp-server-{username}-{pid}.sock
+;; Creates: ~/.emacs.d/.local/cache/emacs-mcp-server-{username}-{pid}.sock (default location)
 ```
 **Use when**: Multiple Emacs instances per user
 
@@ -451,7 +447,7 @@ Choose the best naming strategy for your use case:
 ```elisp
 (setq mcp-server-socket-name 
       (lambda () (format "emacs-%s" (system-name))))
-;; Creates: {socket-dir}/emacs-mcp-server-emacs-{hostname}.sock
+;; Creates: ~/.emacs.d/.local/cache/emacs-mcp-server-emacs-{hostname}.sock (default location)
 ```
 **Use when**: Network setups, containerized environments
 
@@ -461,7 +457,7 @@ Choose the best naming strategy for your use case:
 ;; Socket naming
 (setq mcp-server-socket-name "primary")
 
-;; Socket directory (default: auto-detect hierarchy)
+;; Socket directory (default: ~/.emacs.d/.local/cache/)
 (setq mcp-server-socket-directory "~/.config/emacs-mcp/")
 
 ;; Conflict resolution strategy
@@ -505,7 +501,7 @@ Then configure your MCP client:
   "mcpServers": {
     "emacs": {
       "command": "/path/to/mcp-wrapper.sh",
-      "args": ["primary"],
+      "args": ["~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock"],
       "transport": "stdio"
     }
   }
@@ -531,10 +527,10 @@ Then configure your MCP client:
 2. Verify socket permissions and location:
    ```bash
    # Check common socket locations
-   ls -la ~/Library/Caches/emacs-mcp-server/*.sock        # macOS
-   ls -la ~/.emacs.d/emacs-mcp-server/*.sock             # Emacs convention
-   ls -la $XDG_RUNTIME_DIR/emacs-mcp-server-*.sock       # Linux
-   ls -la /tmp/emacs-mcp-server-*.sock                   # Fallback
+   ls -la ~/.emacs.d/.local/cache/emacs-mcp-server-*.sock    # Primary default
+   ls -la ~/Library/Caches/emacs-mcp-server/*.sock           # macOS fallback
+   ls -la ~/.emacs.d/emacs-mcp-server/*.sock                 # Emacs convention fallback
+   ls -la /tmp/emacs-mcp-server-*.sock                       # Final fallback
    ```
 
 3. Check for port conflicts (future TCP support)
@@ -549,7 +545,7 @@ Then configure your MCP client:
 2. Test socket connectivity:
    ```bash
    # Use actual socket path from mcp-server-get-socket-path
-   socat - UNIX-CONNECT:~/Library/Caches/emacs-mcp-server/emacs-mcp-server-12345.sock
+   socat - UNIX-CONNECT:~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
    ```
 
 3. Check client permissions
@@ -587,7 +583,7 @@ Create MCP configuration:
   "mcpServers": {
     "emacs": {
       "command": "/path/to/mcp-wrapper.sh",
-      "args": ["primary"],
+      "args": ["~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock"],
       "transport": "stdio"
     }
   }

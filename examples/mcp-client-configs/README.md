@@ -13,7 +13,7 @@ This directory contains examples and tools for integrating various MCP clients w
    M-x mcp-server-start-unix
    ```
 
-2. **Configure your MCP client** using one of the examples below.
+2. **Configure your MCP client** with the full socket path (see examples below).
 
 ## Socket Naming Strategies
 
@@ -23,19 +23,19 @@ The Emacs MCP Server supports several socket naming strategies:
 ```elisp
 (setq mcp-server-socket-name "primary")
 ```
-Creates: `/tmp/emacs-mcp-server-primary.sock` (or platform-specific directory)
+Creates: `~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock` (default location)
 
 ### User-based (Good for multi-user systems)
 ```elisp
 (setq mcp-server-socket-name 'user)
 ```
-Creates: `/tmp/emacs-mcp-server-{username}.sock` (or platform-specific directory)
+Creates: `~/.emacs.d/.local/cache/emacs-mcp-server-{username}.sock` (default location)
 
 ### Custom Name
 ```elisp
 (setq mcp-server-socket-name "my-instance")
 ```
-Creates: `/tmp/emacs-mcp-server-my-instance.sock` (or platform-specific directory)
+Creates: `~/.emacs.d/.local/cache/emacs-mcp-server-my-instance.sock` (default location)
 
 ## Client Configurations
 
@@ -49,7 +49,7 @@ Add to your Claude Desktop configuration file:
   "mcpServers": {
     "emacs": {
       "command": "/path/to/mcp-wrapper.sh",
-      "args": ["primary"],
+      "args": ["~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock"],
       "transport": "stdio"
     }
   }
@@ -62,7 +62,7 @@ Add to your Claude Desktop configuration file:
   "mcpServers": {
     "emacs": {
       "command": "python3",
-      "args": ["/path/to/mcp-wrapper.py", "--socket-name", "primary"],
+      "args": ["/path/to/mcp-wrapper.py", "~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock"],
       "transport": "stdio"
     }
   }
@@ -75,7 +75,7 @@ Add to your Claude Desktop configuration file:
   "mcpServers": {
     "emacs": {
       "command": "socat",
-      "args": ["-", "UNIX-CONNECT:/tmp/emacs-mcp-server-primary.sock"],
+      "args": ["-", "UNIX-CONNECT:~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock"],
       "transport": "stdio"
     }
   }
@@ -93,8 +93,8 @@ Add to your Claude Desktop configuration file:
 
 2. **Use with Claude CLI**:
    ```bash
-   claude add mcp -- mcp-server --socket-name primary
-   claude add mcp emacs-mcp -- socat - UNIX-CONNECT:~/Library/Caches/emacs-mcp-server/emacs-mcp-server-claude.sock
+   claude add mcp -- mcp-server ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
+   claude add mcp emacs-mcp -- socat - UNIX-CONNECT:~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
    ```
 
 ### Custom MCP Client
@@ -107,7 +107,7 @@ import json
 
 # Connect to Emacs MCP Server
 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.connect("/tmp/emacs-mcp-server-primary.sock")
+sock.connect("~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock")
 
 # Send initialization
 init_msg = {
@@ -130,36 +130,34 @@ print(response)
 
 ### Shell Wrapper (`mcp-wrapper.sh`)
 - Lightweight shell script using socat
-- Automatic socket discovery
+- Requires full socket path as argument
 - Good for simple integrations
 - Handles cleanup on exit
 
 **Usage:**
 ```bash
-./mcp-wrapper.sh primary
-./mcp-wrapper.sh user
-EMACS_MCP_DEBUG=1 ./mcp-wrapper.sh
+./mcp-wrapper.sh ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
+./mcp-wrapper.sh /custom/path/emacs-mcp-server-myinstance.sock
+EMACS_MCP_DEBUG=1 ./mcp-wrapper.sh ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
 ```
 
 ### Python Wrapper (`mcp-wrapper.py`)
 - More robust error handling
 - Better cross-platform support
 - Bidirectional streaming
-- Advanced socket discovery
+- Requires full socket path as argument
 
 **Usage:**
 ```bash
-./mcp-wrapper.py --socket-name primary
+./mcp-wrapper.py ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
 ./mcp-wrapper.py --list-sockets
-EMACS_MCP_DEBUG=1 ./mcp-wrapper.py
+EMACS_MCP_DEBUG=1 ./mcp-wrapper.py ~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
 ```
 
 ## Environment Variables
 
 Both wrappers support these environment variables:
 
-- `EMACS_MCP_SOCKET_NAME`: Override socket name (default: "primary")
-- `EMACS_MCP_SOCKET_PATH`: Full path to socket (overrides discovery)
 - `EMACS_MCP_TIMEOUT`: Connection timeout in seconds (default: 10)
 - `EMACS_MCP_DEBUG`: Enable debug logging
 
@@ -184,12 +182,12 @@ Both wrappers support these environment variables:
 ### Connection Refused
 1. **Check socket permissions**:
    ```bash
-   ls -la /tmp/emacs-mcp-server-*.sock
+   ls -la ~/.emacs.d/.local/cache/emacs-mcp-server-*.sock
    ```
 
 2. **Test socket connectivity**:
    ```bash
-   echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | socat - UNIX-CONNECT:/tmp/emacs-mcp-server-primary.sock
+   echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | socat - UNIX-CONNECT:~/.emacs.d/.local/cache/emacs-mcp-server-primary.sock
    ```
 
 ### MCP Client Issues
@@ -214,6 +212,7 @@ Both wrappers support these environment variables:
 ```elisp
 (setq mcp-server-socket-directory "~/.config/emacs-mcp/")
 (setq mcp-server-socket-name "primary")
+;; Creates: ~/.config/emacs-mcp/emacs-mcp-server-primary.sock
 ```
 
 ### Dynamic Socket Naming
@@ -226,7 +225,7 @@ Both wrappers support these environment variables:
 ## Security Considerations
 
 1. **Socket permissions**: Sockets are created with user-only access
-2. **Socket location**: Use XDG_RUNTIME_DIR when available for better security
+2. **Socket location**: Use Emacs cache directory for better security and organization
 3. **Input validation**: The server validates all MCP requests
 4. **Sandboxing**: Dangerous operations require user confirmation
 
