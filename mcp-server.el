@@ -1,8 +1,9 @@
-;;; mcp-server.el --- Pure Elisp MCP Server for Emacs Integration -*- lexical-binding: t; -*-
+;;; mcp-server.el --- Pure Elisp MCP Server -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
 ;; Author: Claude Code + Rolf Håvard Blindheim<rhblind@gmail.com>
+;; URL: https://github.com/rhblind/emacs-mcp-server
 ;; Keywords: mcp, protocol, integration, tools
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "28.1"))
@@ -162,6 +163,7 @@ Defaults to `user-emacs-directory'. Users can customize this with:
 
 ;;; Server Management
 
+;;;###autoload
 (defun mcp-server-start (&optional debug transport)
   "Start the MCP server with optional DEBUG and TRANSPORT.
 TRANSPORT defaults to 'unix' if not specified.
@@ -170,6 +172,7 @@ If DEBUG is non-nil, enable debug logging."
   (let ((transport-name (or transport mcp-server-default-transport)))
     (mcp-server--start-with-transport transport-name debug)))
 
+;;;###autoload
 (defun mcp-server-start-unix (&optional debug socket-path)
   "Start MCP server with Unix domain socket transport.
 If DEBUG is non-nil, enable debug logging.
@@ -177,6 +180,7 @@ SOCKET-PATH specifies custom socket location."
   (interactive "P")
   (mcp-server--start-with-transport "unix" debug socket-path))
 
+;;;###autoload
 (defun mcp-server-start-tcp (&optional debug host port)
   "Start MCP server with TCP transport.
 If DEBUG is non-nil, enable debug logging.
