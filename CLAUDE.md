@@ -6,16 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an Emacs MCP (Model Context Protocol) Server implementation written in pure Elisp. It enables direct integration between Large Language Models and Emacs internals by exposing Emacs functionality through standardized MCP tools.
 
-## Development
+## Code generation.
 
-- Always ensure that parantheses are matched perfectly.
+- ALWAYS ensure that parantheses are perfectly balanced!
+- Be as concise as possible.
+- Be extremely careful with the protocol and transport layers code. Always test code if making changes to it.
+- Follow idiomatic ELisp conventions.
 
 ## Key Architecture Components
 
 ### Modular Transport System
 The server uses a pluggable transport architecture:
 - `mcp-server-transport.el` - Base transport interface
-- `mcp-server-transport-unix.el` - Unix domain socket implementation  
+- `mcp-server-transport-unix.el` - Unix domain socket implementation
 - `mcp-server-transport-tcp.el` - TCP transport (planned)
 - Multiple transport backends can coexist
 
