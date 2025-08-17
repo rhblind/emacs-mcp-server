@@ -175,7 +175,6 @@ Operations requiring explicit permission include file system operations (`delete
 ### Claude CLI 
 
 ```bash
-# Using shell wrapper
 claude mcp add emacs ~/path-to/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the python script
 claude mcp add emacs ~/path-to/mcp-wrapper.sh ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the bash script
 claude mcp add emacs-direct -- socat - UNIX-CONNECT:$HOME/.config/emacs/.local/cache/emacs-mcp-server.sock # Uses socat directly
