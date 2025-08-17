@@ -178,6 +178,9 @@ Operations requiring explicit permission include file system operations (`delete
 claude mcp add emacs ~/path-to/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the python script
 claude mcp add emacs ~/path-to/mcp-wrapper.sh ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the bash script
 claude mcp add emacs-direct -- socat - UNIX-CONNECT:$HOME/.config/emacs/.local/cache/emacs-mcp-server.sock # Uses socat directly
+
+# Real world, add to user scope so it's always available
+claude mcp add emacs --scope user ~/.config/emacs/.local/straight/build-30.1/mcp-server/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock
 ```
 
 ### Wrapper Scripts
