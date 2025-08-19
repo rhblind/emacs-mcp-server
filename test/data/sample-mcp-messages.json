@@ -1,0 +1,239 @@
+{
+  "valid_requests": [
+    {
+      "jsonrpc": "2.0",
+      "id": "init-1",
+      "method": "initialize",
+      "params": {
+        "protocolVersion": "2024-11-05",
+        "capabilities": {
+          "tools": {
+            "listChanged": true
+          }
+        },
+        "clientInfo": {
+          "name": "test-client",
+          "version": "1.0.0"
+        }
+      }
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": "tools-list-1",
+      "method": "tools/list"
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": "tools-call-1",
+      "method": "tools/call",
+      "params": {
+        "name": "eval-elisp",
+        "arguments": {
+          "expression": "(+ 1 2 3)"
+        }
+      }
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": "resources-list-1",
+      "method": "resources/list"
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": "resources-read-1",
+      "method": "resources/read",
+      "params": {
+        "uri": "file:///tmp/test.txt"
+      }
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": "prompts-list-1",
+      "method": "prompts/list"
+    }
+  ],
+  "valid_notifications": [
+    {
+      "jsonrpc": "2.0",
+      "method": "initialized"
+    },
+    {
+      "jsonrpc": "2.0",
+      "method": "notifications/tools/list_changed"
+    }
+  ],
+  "valid_responses": [
+    {
+      "jsonrpc": "2.0",
+      "id": "init-1",
+      "result": {
+        "protocolVersion": "2024-11-05",
+        "capabilities": {
+          "tools": {
+            "listChanged": true
+          },
+          "resources": {
+            "subscribe": true,
+            "listChanged": true
+          },
+          "prompts": {
+            "listChanged": true
+          }
+        },
+        "serverInfo": {
+          "name": "emacs-mcp-server",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": "tools-list-1",
+      "result": {
+        "tools": [
+          {
+            "name": "eval-elisp",
+            "title": "Evaluate Elisp",
+            "description": "Execute arbitrary Elisp expressions safely",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "expression": {
+                  "type": "string"
+                }
+              },
+              "required": ["expression"]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": "tools-call-1",
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "6"
+          }
+        ]
+      }
+    }
+  ],
+  "error_responses": [
+    {
+      "jsonrpc": "2.0",
+      "id": "error-1",
+      "error": {
+        "code": -32601,
+        "message": "Method not found"
+      }
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": "error-2",
+      "error": {
+        "code": -32602,
+        "message": "Invalid params",
+        "data": {
+          "details": "Missing required parameter 'name'"
+        }
+      }
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": "error-3",
+      "error": {
+        "code": -32603,
+        "message": "Internal error",
+        "data": {
+          "details": "Tool execution failed"
+        }
+      }
+    }
+  ],
+  "malformed_requests": [
+    {
+      "jsonrpc": "1.0",
+      "id": "bad-version",
+      "method": "test"
+    },
+    {
+      "id": "missing-jsonrpc",
+      "method": "test"
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": "missing-method"
+    },
+    "not-an-object",
+    null,
+    "",
+    "{"
+  ],
+  "security_test_inputs": [
+    {
+      "dangerous_expressions": [
+        "(delete-file \"/etc/passwd\")",
+        "(shell-command \"rm -rf /\")",
+        "(kill-emacs)",
+        "(eval '(delete-file \"/tmp/important\"))"
+      ]
+    },
+    {
+      "suspicious_strings": [
+        "$(malicious command)",
+        "`dangerous`",
+        "rm -rf /",
+        "eval evil code",
+        "../../../etc/passwd"
+      ]
+    },
+    {
+      "sensitive_content": [
+        "password=secret123",
+        "api_key=abc123def456",
+        "auth_token: xyz789",
+        "secret_key = my-secret",
+        "AWS_SECRET_ACCESS_KEY=secretvalue"
+      ]
+    }
+  ],
+  "tool_validation_test_cases": [
+    {
+      "valid_inputs": [
+        {
+          "name": "test-tool",
+          "args": {
+            "input": "test string"
+          }
+        },
+        {
+          "name": "math-tool",
+          "args": {
+            "numbers": [1, 2, 3, 4, 5],
+            "operation": "sum"
+          }
+        }
+      ]
+    },
+    {
+      "invalid_inputs": [
+        {
+          "name": "test-tool",
+          "args": {
+            "wrong_param": "value"
+          }
+        },
+        {
+          "name": "math-tool",
+          "args": {
+            "numbers": "not an array",
+            "operation": "sum"
+          }
+        }
+      ]
+    }
+  ]
+}

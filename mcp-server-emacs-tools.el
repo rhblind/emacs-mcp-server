@@ -28,7 +28,7 @@
      (let ((expression (alist-get 'expression args)))
        (condition-case err
            (let ((form (read-from-string expression)))
-             (format "%S" (eval (car form))))
+             (format "%S" (mcp-server-security-safe-eval (car form))))
          (error (format "Error: %s" (error-message-string err))))))))
 
 (provide 'mcp-server-emacs-tools)

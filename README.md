@@ -1,5 +1,9 @@
 # MCP Server for Emacs
 
+[![Test Suite](https://github.com/rhblind/emacs-mcp-server/actions/workflows/test.yml/badge.svg)](https://github.com/rhblind/emacs-mcp-server/actions/workflows/test.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Emacs](https://img.shields.io/badge/Emacs-28.1%20|%2028.2%20|%2029.1%20|%2030.1%20|%2030.2-purple)](https://www.gnu.org/software/emacs/)
+
 Connect Large Language Models directly to your Emacs environment! This MCP (Model Context Protocol) server exposes Emacs functionality through standardized tools, allowing LLMs like Claude to read and modify your buffers, execute elisp code, navigate files, and much more.
 
 <div align="center">
@@ -53,6 +57,17 @@ Alternatively, use package managers:
     }
   }
 }
+```
+
+**Connect Claude CLI**
+
+```bash
+claude mcp add emacs ~/path-to/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the python script
+claude mcp add emacs ~/path-to/mcp-wrapper.sh ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the bash script
+claude mcp add emacs-direct -- socat - UNIX-CONNECT:$HOME/.config/emacs/.local/cache/emacs-mcp-server.sock # Uses socat directly
+
+# Real world, add to user scope so it's always available
+claude mcp add emacs --scope user ~/.config/emacs/.local/straight/build-30.1/mcp-server/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock
 ```
 
 **That's it!** Claude can now interact with your Emacs session.
@@ -123,9 +138,147 @@ Once connected, LLMs can perform powerful operations in your Emacs environment:
 
 ## Security
 
-The server implements comprehensive security measures including permission prompts for dangerous operations (file system access, process execution), caches decisions for the session, maintains an audit trail of all operations, validates all tool inputs using JSON Schema, protects against code injection, and limits operations to 30 seconds by default.
+The MCP server implements comprehensive security measures to protect your Emacs environment and sensitive data from unauthorized access by LLMs.
 
-Operations requiring explicit permission include file system operations (`delete-file`, `write-region`), process execution (`shell-command`, `call-process`), and system functions (`kill-emacs`, `server-start`).
+### Security Features
+
+**Permission System:**
+- **Dangerous function protection** - Functions like `delete-file`, `shell-command`, `find-file` require user approval
+- **Sensitive file protection** - Automatic blocking of credential files (`.authinfo`, `.netrc`, SSH keys, etc.)
+- **Buffer access controls** - Protection for sensitive buffers like `*Messages*`, `*shell*`, `*terminal*`
+- **Permission caching** - Decisions are remembered for the session to avoid repeated prompts
+- **Audit logging** - Complete trail of all security events and decisions
+
+**Input Validation:**
+- **JSON Schema validation** - All tool inputs are validated against defined schemas
+- **Code injection protection** - Elisp expressions are scanned for dangerous patterns
+- **Path traversal prevention** - File paths are validated to prevent directory escape attacks
+- **Content scanning** - File contents are checked for credential patterns before access
+
+**Execution Limits:**
+- **Timeout protection** - Operations are limited to 30 seconds by default
+- **Memory monitoring** - Resource usage is tracked during execution
+- **Safe evaluation** - All Elisp code goes through security validation before execution
+
+### Default Protected Files
+
+The server automatically protects these sensitive file patterns:
+
+**Authentication Files:**
+- `~/.authinfo*` - Emacs authentication data
+- `~/.netrc*` - Network authentication credentials  
+- `~/.ssh/` - SSH keys and configuration
+- `~/.gnupg/` - GPG keys and configuration
+
+**Cloud & Service Credentials:**
+- `~/.aws/` - AWS credentials
+- `~/.docker/config.json` - Docker authentication
+- `~/.kube/config` - Kubernetes configuration
+- `~/.config/gh/` - GitHub CLI credentials
+
+**System Files:**
+- `/etc/passwd`, `/etc/shadow` - System authentication
+- `~/.password-store/` - Password manager data
+- Files containing "passwords", "secrets", "credentials", "keys", "tokens"
+
+### Security Configuration
+
+Users have complete control over the security model through customizable settings:
+
+**Customize Sensitive Files:**
+```elisp
+;; Add your own sensitive file patterns
+(setq mcp-server-security-sensitive-file-patterns
+      '("~/.authinfo" "~/.ssh/" "~/my-secrets/" "*.key"))
+
+;; Allow specific sensitive files without prompting
+(setq mcp-server-security-allowed-sensitive-files
+      '("~/.authinfo" "~/safe-config.txt"))
+```
+
+**Customize Dangerous Functions:**
+```elisp
+;; Modify which functions require permission
+(setq mcp-server-security-dangerous-functions
+      '(delete-file shell-command find-file write-region))
+
+;; Allow specific functions without prompting  
+(setq mcp-server-security-allowed-dangerous-functions
+      '(find-file dired))  ; Allow file browsing freely
+```
+
+**Global Security Settings:**
+```elisp
+;; Disable all permission prompts (not recommended)
+(setq mcp-server-security-prompt-for-permissions nil)
+
+;; Customize execution timeout
+(setq mcp-server-security--max-execution-time 60)  ; 60 seconds
+
+;; Add custom sensitive buffer patterns
+(setq mcp-server-security-sensitive-buffer-patterns
+      '("*Messages*" "*shell*" "*my-secure-buffer*"))
+```
+
+**Use Emacs Customize Interface:**
+```elisp
+M-x customize-group RET mcp-server RET
+```
+
+### Security Modes
+
+**Paranoid Mode (Maximum Security):**
+```elisp
+;; Very restrictive - prompts for everything
+(setq mcp-server-security-dangerous-functions
+      '(find-file insert-file-contents switch-to-buffer eval load require))
+(setq mcp-server-security-allowed-dangerous-functions nil)
+(setq mcp-server-security-prompt-for-permissions t)
+```
+
+**Permissive Mode (Development):**
+```elisp
+;; More relaxed for trusted development scenarios
+(setq mcp-server-security-allowed-dangerous-functions
+      '(find-file dired switch-to-buffer insert-file-contents))
+;; Keep file protections for credentials
+(setq mcp-server-security-sensitive-file-patterns
+      '("~/.authinfo*" "~/.netrc*" "~/.ssh/" "~/.gnupg/"))
+```
+
+**Whitelist-Only Mode (Ultra Secure):**
+```elisp
+;; Only allow explicitly whitelisted operations
+(setq mcp-server-security-prompt-for-permissions nil)  ; No prompts - just deny
+(setq mcp-server-security-allowed-dangerous-functions '(buffer-string point))
+(setq mcp-server-security-allowed-sensitive-files nil)  ; No sensitive files allowed
+```
+
+### Monitoring Security
+
+**View Security Activity:**
+```elisp
+M-x mcp-server-security-show-audit-log     ; View all security events
+M-x mcp-server-security-show-permissions   ; View cached permission decisions
+M-x mcp-server-security-clear-permissions  ; Reset all cached permissions
+```
+
+**Security Events Include:**
+- Permission requests (granted/denied)
+- Sensitive file access attempts
+- Dangerous function calls
+- Security configuration changes
+- Execution timeouts and errors
+
+### Best Practices
+
+1. **Keep defaults** - The default security settings provide good protection for most users
+2. **Review audit logs** - Regularly check what the LLM has been trying to access
+3. **Use whitelists** - For recurring workflows, whitelist specific safe operations
+4. **Monitor credentials** - Be especially careful with any files containing passwords or API keys
+5. **Test security** - Verify your configuration blocks unauthorized access as expected
+
+Operations requiring explicit permission include file system operations (`delete-file`, `write-region`), process execution (`shell-command`, `call-process`), system functions (`kill-emacs`, `server-start`), and access to sensitive files or buffers.
 
 ## Management Commands
 
@@ -178,16 +331,6 @@ Operations requiring explicit permission include file system operations (`delete
 }
 ```
 
-### Claude CLI 
-
-```bash
-claude mcp add emacs ~/path-to/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the python script
-claude mcp add emacs ~/path-to/mcp-wrapper.sh ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the bash script
-claude mcp add emacs-direct -- socat - UNIX-CONNECT:$HOME/.config/emacs/.local/cache/emacs-mcp-server.sock # Uses socat directly
-
-# Real world, add to user scope so it's always available
-claude mcp add emacs --scope user ~/.config/emacs/.local/straight/build-30.1/mcp-server/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock
-```
 
 ### Wrapper Scripts
 
