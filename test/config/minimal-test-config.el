@@ -1,7 +1,7 @@
 ;;; minimal-test-config.el --- Minimal config for MCP server testing
 
-;; Add the current directory to load path
-(add-to-list 'load-path (file-name-directory load-file-name))
+;; Add the project root directory to load path
+(add-to-list 'load-path (expand-file-name "../.." (file-name-directory load-file-name)))
 
 ;; Load the MCP server modules
 (require 'mcp-server)
@@ -14,6 +14,7 @@
 ;; Configure for testing
 (setq mcp-server-debug t)  ; Enable debug logging
 (setq mcp-server-socket-name "test-server")  ; Use predictable socket name
+(setq mcp-server-security--prompt-for-permissions nil)  ; Disable prompting for tests
 
 ;; Start the server automatically
 (mcp-server-start-unix-named "test-server")

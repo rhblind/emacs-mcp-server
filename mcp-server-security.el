@@ -21,30 +21,56 @@
 
 ;;; Variables
 
-(defvar mcp-server-security--dangerous-functions
-  '(delete-file
-    delete-directory
-    shell-command
-    shell-command-to-string
+(defcustom mcp-server-security-dangerous-functions
+  '(browse-url
     call-process
-    start-process
+    copy-file
+    delete-directory
+    delete-file
+    dired
     eval
-    load
-    require
+    find-file
+    find-file-literally
+    find-file-noselect
+    getenv
+    insert-file-contents
     kill-emacs
+    load
+    make-directory
+    process-environment
+    rename-file
+    require
     save-buffers-kill-emacs
     save-buffers-kill-terminal
-    server-start
+    save-current-buffer
     server-force-delete
+    server-start
+    set-buffer
     set-file-modes
     set-file-times
-    copy-file
-    rename-file
-    make-directory
-    write-region
-    insert-file-contents
-    find-file-literally)
-  "List of dangerous functions that require permission.")
+    shell-command
+    shell-command-to-string
+    shell-environment
+    start-process
+    switch-to-buffer
+    url-retrieve
+    url-retrieve-synchronously
+    view-file
+    with-current-buffer
+    write-region)
+  "List of functions that require permission before execution.
+Users can customize this list to add or remove functions that should
+prompt for permission when used by the LLM."
+  :type '(repeat symbol)
+  :group 'mcp-server)
+
+(defcustom mcp-server-security-allowed-dangerous-functions nil
+  "List of dangerous functions that are explicitly allowed without prompting.
+These functions will bypass the dangerous function protection even if they
+are listed in `mcp-server-security-dangerous-functions'.
+Use this to whitelist specific functions you trust the LLM to use freely."
+  :type '(repeat symbol)
+  :group 'mcp-server)
 
 (defvar mcp-server-security--permission-cache (make-hash-table :test 'equal)
   "Cache of granted permissions.")
@@ -58,8 +84,46 @@
 (defvar mcp-server-security--max-memory-usage 100000000
   "Maximum memory usage for tools in bytes (100MB).")
 
-(defvar mcp-server-security--prompt-for-permissions t
-  "Whether to prompt user for dangerous operations.")
+(defcustom mcp-server-security-prompt-for-permissions t
+  "Whether to prompt user for dangerous operations."
+  :type 'boolean
+  :group 'mcp-server)
+
+(defcustom mcp-server-security-sensitive-file-patterns
+  '("~/.authinfo" "~/.authinfo.gpg" "~/.authinfo.gpg~" "~/.authinfo.enc"
+    "~/.netrc" "~/.netrc.gpg" "~/.netrc.gpg~" "~/.netrc.enc"
+    "~/.ssh/" "~/.gnupg/" "~/.aws/" "~/.config/gh/"
+    "~/.docker/config.json" "~/.kube/config" "~/.npmrc"
+    "~/.pypirc" "~/.gem/credentials" "~/.gitconfig"
+    "~/.password-store/" "~/.local/share/keyrings/"
+    "/etc/passwd" "/etc/shadow" "/etc/hosts"
+    "passwords" "secrets" "credentials" "keys" "tokens")
+  "List of file patterns that should require permission to access.
+Users can customize this list to add or remove sensitive file patterns.
+Patterns can be absolute paths, relative paths, or just filenames."
+  :type '(repeat string)
+  :group 'mcp-server)
+
+(defcustom mcp-server-security-allowed-sensitive-files nil
+  "List of sensitive files that are explicitly allowed without prompting.
+These files will bypass the sensitive file protection even if they match
+patterns in `mcp-server-security-sensitive-file-patterns'.
+Use this to whitelist specific credential files you want the LLM to access."
+  :type '(repeat string)
+  :group 'mcp-server)
+
+(defcustom mcp-server-security-sensitive-buffer-patterns
+  '("*Messages*" "*shell*" "*terminal*" "*eshell*"
+    "*compilation*" "*Async Shell Command*")
+  "List of buffer patterns that may contain sensitive information."
+  :type '(repeat string)
+  :group 'mcp-server)
+
+;; Backward compatibility aliases
+(defvar mcp-server-security--prompt-for-permissions mcp-server-security-prompt-for-permissions)
+(defvar mcp-server-security--sensitive-file-patterns mcp-server-security-sensitive-file-patterns)
+(defvar mcp-server-security--sensitive-buffer-patterns mcp-server-security-sensitive-buffer-patterns)
+(defvar mcp-server-security--dangerous-functions mcp-server-security-dangerous-functions)
 
 ;;; Permission Management
 
@@ -72,7 +136,7 @@ Returns t if permitted, nil otherwise."
 
 (defun mcp-server-security--request-permission (operation data cache-key)
   "Request permission for OPERATION with DATA, caching result with CACHE-KEY."
-  (if mcp-server-security--prompt-for-permissions
+  (if mcp-server-security-prompt-for-permissions
       (let ((granted (yes-or-no-p 
                       (format "MCP tool wants to perform: %s%s. Allow? "
                               operation
@@ -88,8 +152,41 @@ Returns t if permitted, nil otherwise."
 
 (defun mcp-server-security--is-dangerous-operation (operation)
   "Check if OPERATION is considered dangerous."
-  (or (member operation mcp-server-security--dangerous-functions)
-      (string-match-p "delete\\|kill\\|remove\\|destroy" (symbol-name operation))))
+  ;; First check if function is explicitly allowed
+  (unless (member operation mcp-server-security-allowed-dangerous-functions)
+    ;; Then check if it's in the dangerous functions list or matches dangerous patterns
+    (or (member operation mcp-server-security-dangerous-functions)
+        (string-match-p "delete\\|kill\\|remove\\|destroy" (symbol-name operation)))))
+
+(defun mcp-server-security--is-sensitive-file (path)
+  "Check if PATH points to a sensitive file."
+  (when (stringp path)
+    (let ((expanded-path (expand-file-name path)))
+      ;; First check if file is explicitly allowed
+      (unless (cl-some (lambda (allowed-file)
+                         (string-equal (expand-file-name allowed-file) expanded-path))
+                       mcp-server-security-allowed-sensitive-files)
+        ;; Then check if it matches any sensitive patterns
+        (cl-some (lambda (pattern)
+                   (or (string-match-p (regexp-quote pattern) expanded-path)
+                       (string-match-p pattern (file-name-nondirectory expanded-path))))
+                 mcp-server-security-sensitive-file-patterns)))))
+
+(defun mcp-server-security--is-sensitive-buffer (buffer-name)
+  "Check if BUFFER-NAME is a sensitive buffer."
+  (when (stringp buffer-name)
+    (cl-some (lambda (pattern)
+               (string-match-p pattern buffer-name))
+             mcp-server-security-sensitive-buffer-patterns)))
+
+(defun mcp-server-security--contains-credentials (content)
+  "Check if CONTENT contains credential-like patterns."
+  (when (stringp content)
+    (or (string-match-p "password\\s-*[=:]\\s-*['\"]?[^\\s]+" content)
+        (string-match-p "api[_-]?key\\s-*[=:]\\s-*['\"]?[^\\s]+" content)
+        (string-match-p "secret\\s-*[=:]\\s-*['\"]?[^\\s]+" content)
+        (string-match-p "token\\s-*[=:]\\s-*['\"]?[^\\s]+" content)
+        (string-match-p "-----BEGIN [A-Z ]+PRIVATE KEY-----" content))))
 
 ;;; Input Validation
 
@@ -143,21 +240,43 @@ Returns the input if safe, signals an error otherwise."
   (cond
    ;; Check atoms
    ((symbolp form)
-    (when (member form mcp-server-security--dangerous-functions)
+    (when (and (member form mcp-server-security-dangerous-functions)
+               (not (member form mcp-server-security-allowed-dangerous-functions)))
       (unless (mcp-server-security-check-permission form)
         (error "Permission denied for function: %s" form))))
    
    ;; Check lists (function calls)
    ((listp form)
     (when form
-      (let ((func (car form)))
+      (let ((func (car form))
+            (args (cdr form)))
         (when (symbolp func)
-          (when (member func mcp-server-security--dangerous-functions)
-            (unless (mcp-server-security-check-permission func (cdr form))
-              (error "Permission denied for function: %s" func))))
+          ;; Check for dangerous functions
+          (when (and (member func mcp-server-security-dangerous-functions)
+                     (not (member func mcp-server-security-allowed-dangerous-functions)))
+            (unless (mcp-server-security-check-permission func args)
+              (error "Permission denied for function: %s" func)))
+          
+          ;; Special checks for file access functions
+          (when (memq func '(find-file find-file-noselect view-file insert-file-contents))
+            (let ((file-path (car args)))
+              (when (and file-path (stringp file-path))
+                (when (mcp-server-security--is-sensitive-file file-path)
+                  (unless (mcp-server-security-check-permission 
+                           (format "access-sensitive-file:%s" func) file-path)
+                    (error "Permission denied for sensitive file access: %s" file-path))))))
+          
+          ;; Special checks for buffer access functions
+          (when (memq func '(switch-to-buffer set-buffer with-current-buffer))
+            (let ((buffer-name (if (eq func 'with-current-buffer) 
+                                   (car args)
+                                 (car args))))
+              (when (and buffer-name (stringp buffer-name))
+                (when (mcp-server-security--is-sensitive-buffer buffer-name)
+                  (error "Access denied to sensitive buffer: %s" buffer-name))))))
         
         ;; Recursively check arguments
-        (dolist (arg (cdr form))
+        (dolist (arg args)
           (mcp-server-security--check-form-safety arg)))))))
 
 (defun mcp-server-security--execute-with-limits (func)
