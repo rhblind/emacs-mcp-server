@@ -1,5 +1,9 @@
 # MCP Server for Emacs
 
+[![Test Suite](https://github.com/rhblind/emacs-mcp-server/actions/workflows/test.yml/badge.svg)](https://github.com/rhblind/emacs-mcp-server/actions/workflows/test.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Emacs](https://img.shields.io/badge/Emacs-28.1%20|%2028.2%20|%2029.1%20|%2030.1%20|%2030.2-purple)](https://www.gnu.org/software/emacs/)
+
 Connect Large Language Models directly to your Emacs environment! This MCP (Model Context Protocol) server exposes Emacs functionality through standardized tools, allowing LLMs like Claude to read and modify your buffers, execute elisp code, navigate files, and much more.
 
 <div align="center">
