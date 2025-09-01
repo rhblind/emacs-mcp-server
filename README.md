@@ -43,6 +43,9 @@ Alternatively, use package managers:
 
 **Connect Claude Desktop:** Add this to your Claude Desktop configuration:
 
+> [!NOTE]
+> Make sure you have `socat` installed!
+
 ```json
 {
   "mcpServers": {
