@@ -10,6 +10,7 @@ set -euo pipefail
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_SOCKET_NAME="test-instance"
+TEST_SOCKET_DIR="/tmp/emacs-mcp-server-test"
 TEST_TIMEOUT=5
 EMACS_BIN="${EMACS:-emacs}"
 VERBOSE=false
@@ -117,16 +118,8 @@ check_dependencies() {
 start_emacs_server() {
     if [[ "$SKIP_EMACS_START" == "true" ]]; then
         log_info "Skipping Emacs startup (assuming server is already running)"
-        # Try to determine socket directory the same way Emacs does
-        if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
-            SOCKET_PATH="${XDG_RUNTIME_DIR}/emacs-mcp-server-${TEST_SOCKET_NAME}.sock"
-        elif [[ "$(uname)" == "Darwin" ]]; then
-            mkdir -p "${HOME}/Library/Caches/emacs-mcp-server"
-            SOCKET_PATH="${HOME}/Library/Caches/emacs-mcp-server/emacs-mcp-server-${TEST_SOCKET_NAME}.sock"
-        else
-            mkdir -p "${HOME}/.emacs.d/emacs-mcp-server"
-            SOCKET_PATH="${HOME}/.emacs.d/emacs-mcp-server/emacs-mcp-server-${TEST_SOCKET_NAME}.sock"
-        fi
+        mkdir -p "$TEST_SOCKET_DIR"
+        SOCKET_PATH="${TEST_SOCKET_DIR}/emacs-mcp-server-${TEST_SOCKET_NAME}.sock"
         return 0
     fi
     
@@ -134,11 +127,15 @@ start_emacs_server() {
     
     log_info "Starting Emacs with MCP server..."
     
+    # Ensure test socket directory exists
+    mkdir -p "$TEST_SOCKET_DIR"
+
     # Start Emacs directly with eval commands
     "$EMACS_BIN" --batch \
         --eval "(add-to-list 'load-path \"$SCRIPT_DIR/../..\")" \
         --eval "(add-to-list 'load-path \"$SCRIPT_DIR/../config\")" \
         --eval "(require 'test-config)" \
+        --eval "(setq mcp-server-socket-directory \"$TEST_SOCKET_DIR\")" \
         --eval "(setq mcp-server-socket-name \"$TEST_SOCKET_NAME\")" \
         --eval "(setq mcp-server-debug t)" \
         --eval "(mcp-test-start-server)" \
@@ -149,14 +146,8 @@ start_emacs_server() {
     
     log_info "Emacs started with PID: $EMACS_PID"
     
-    # Wait for socket to appear - determine expected path
-    if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
-        SOCKET_PATH="${XDG_RUNTIME_DIR}/emacs-mcp-server-${TEST_SOCKET_NAME}.sock"
-    elif [[ "$(uname)" == "Darwin" ]]; then
-        SOCKET_PATH="${HOME}/Library/Caches/emacs-mcp-server/emacs-mcp-server-${TEST_SOCKET_NAME}.sock"
-    else
-        SOCKET_PATH="${HOME}/.emacs.d/emacs-mcp-server/emacs-mcp-server-${TEST_SOCKET_NAME}.sock"
-    fi
+    # Wait for socket to appear - use explicit test directory
+    SOCKET_PATH="${TEST_SOCKET_DIR}/emacs-mcp-server-${TEST_SOCKET_NAME}.sock"
     log_info "Waiting for socket: $SOCKET_PATH"
     
     local wait_count=0
@@ -303,22 +294,14 @@ test_mcp_wrappers() {
 # Test 5: MCP protocol compliance
 test_mcp_protocol() {
     log_verbose "Testing MCP protocol compliance..."
-    
+
     # Test initialization sequence
-    local init_message='{
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "initialize",
-        "params": {
-            "protocolVersion": "draft",
-            "capabilities": {},
-            "clientInfo": {"name": "test-client", "version": "1.0.0"}
-        }
-    }'
-    
+    # Per MCP spec: messages are newline-delimited and MUST NOT contain embedded newlines
+    local init_message='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"draft","capabilities":{},"clientInfo":{"name":"test-client","version":"1.0.0"}}}'
+
     local response
     response=$(echo "$init_message" | timeout 2 socat - "UNIX-CONNECT:$SOCKET_PATH" 2>/dev/null || true)
-    
+
     if [[ -n "$response" && "$response" == *"serverInfo"* && "$response" == *"mcp-server"* ]]; then
         log_verbose "MCP initialization test passed"
         return 0
@@ -335,21 +318,13 @@ test_refactoring_validation() {
         log_info "Skipping refactoring validation (external Emacs instance)"
         return 0
     fi
-    
+
     log_verbose "Validating refactoring through socket response..."
-    
+
     # The response from initialization should contain "mcp-server" not "emacs-mcp-server"
-    local init_message='{
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "initialize",
-        "params": {
-            "protocolVersion": "draft",
-            "capabilities": {},
-            "clientInfo": {"name": "test-client", "version": "1.0.0"}
-        }
-    }'
-    
+    # Per MCP spec: messages are newline-delimited and MUST NOT contain embedded newlines
+    local init_message='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"draft","capabilities":{},"clientInfo":{"name":"test-client","version":"1.0.0"}}}'
+
     local response
     response=$(echo "$init_message" | timeout 2 socat - "UNIX-CONNECT:$SOCKET_PATH" 2>/dev/null || true)
     

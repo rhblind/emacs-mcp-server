@@ -73,7 +73,7 @@ Use this to whitelist specific functions you trust the LLM to use freely."
   :group 'mcp-server)
 
 (defvar mcp-server-security--permission-cache (make-hash-table :test 'equal)
-  "Cache of granted permissions.")
+  "Cache of granted permissions for current Emacs session.")
 
 (defvar mcp-server-security--audit-log '()
   "Audit log of security events.")
@@ -131,24 +131,41 @@ Use this to whitelist specific credential files you want the LLM to access."
   "Check if OPERATION with DATA is permitted.
 Returns t if permitted, nil otherwise."
   (let ((cache-key (format "%s:%s" operation data)))
-    (or (gethash cache-key mcp-server-security--permission-cache)
-        (mcp-server-security--request-permission operation data cache-key))))
+    (if (gethash cache-key mcp-server-security--permission-cache)
+        t
+      (mcp-server-security--request-permission operation data cache-key))))
 
 (defun mcp-server-security--request-permission (operation data cache-key)
   "Request permission for OPERATION with DATA, caching result with CACHE-KEY."
   (if mcp-server-security-prompt-for-permissions
-      (let ((granted (yes-or-no-p 
-                      (format "MCP tool wants to perform: %s%s. Allow? "
-                              operation
-                              (if data (format " (%s)" data) "")))))
-        (puthash cache-key granted mcp-server-security--permission-cache)
-        (mcp-server-security--log-audit operation data granted)
-        granted)
+      (let ((response (mcp-server-security--prompt-permission operation data)))
+        (pcase response
+          ('always
+           (puthash cache-key t mcp-server-security--permission-cache)
+           (mcp-server-security--log-audit operation data 'always)
+           t)
+          ('yes
+           (mcp-server-security--log-audit operation data t)
+           t)
+          ('no
+           (mcp-server-security--log-audit operation data nil)
+           nil)))
     ;; If not prompting, deny dangerous operations by default
     (let ((granted (not (mcp-server-security--is-dangerous-operation operation))))
       (puthash cache-key granted mcp-server-security--permission-cache)
       (mcp-server-security--log-audit operation data granted)
       granted)))
+
+(defun mcp-server-security--prompt-permission (operation data)
+  "Prompt user for permission for OPERATION with DATA.
+Returns 'yes, 'no, or 'always."
+  (let ((prompt (format "MCP: %s%s (y)es, (n)o, (!) always: "
+                        operation
+                        (if data (format " (%s)" data) ""))))
+    (pcase (read-char-choice prompt '(?y ?n ?!))
+      (?y 'yes)
+      (?n 'no)
+      (?! 'always))))
 
 (defun mcp-server-security--is-dangerous-operation (operation)
   "Check if OPERATION is considered dangerous."
@@ -329,8 +346,10 @@ Returns the input if safe, signals an error otherwise."
 
 (defun mcp-server-security-clear-permissions ()
   "Clear all cached permissions."
+  (interactive)
   (clrhash mcp-server-security--permission-cache)
-  (mcp-server-security--log-audit 'clear-permissions nil t))
+  (mcp-server-security--log-audit 'clear-permissions nil t)
+  (message "Session permission cache cleared."))
 
 (defun mcp-server-security-grant-permission (operation &optional data)
   "Grant permission for OPERATION with optional DATA."
@@ -396,18 +415,35 @@ Returns the input if safe, signals an error otherwise."
     (pop-to-buffer (current-buffer))))
 
 (defun mcp-server-security-show-permissions ()
-  "Display cached permissions."
+  "Display cached permissions for this session."
   (interactive)
   (with-current-buffer (get-buffer-create "*MCP Permissions*")
     (erase-buffer)
-    (insert "MCP Cached Permissions\n")
-    (insert "======================\n\n")
-    (maphash
-     (lambda (key value)
-       (insert (format "%s: %s\n" key (if value "GRANTED" "DENIED"))))
-     mcp-server-security--permission-cache)
+    (insert "MCP Session Permissions\n")
+    (insert "=======================\n\n")
+    (let ((count 0))
+      (maphash
+       (lambda (key value)
+         (insert (format "  %s: %s\n" key (if value "ALLOWED" "DENIED")))
+         (cl-incf count))
+       mcp-server-security--permission-cache)
+      (when (zerop count)
+        (insert "  (none)\n")))
     (goto-char (point-min))
     (pop-to-buffer (current-buffer))))
+
+(defun mcp-server-security-remove-permission (key)
+  "Remove a specific permission by KEY."
+  (interactive
+   (list (completing-read "Remove permission: "
+                          (let (keys)
+                            (maphash (lambda (k _v) (push k keys))
+                                     mcp-server-security--permission-cache)
+                            keys)
+                          nil t)))
+  (remhash key mcp-server-security--permission-cache)
+  (mcp-server-security--log-audit 'remove-permission key t)
+  (message "Removed permission: %s" key))
 
 (provide 'mcp-server-security)
 
