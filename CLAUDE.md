@@ -218,3 +218,4 @@ The modular transport design allows adding new transport mechanisms:
 - Implement the `mcp-server-transport` interface
 - Register with `mcp-server-transport-register`
 - Support for stdio, TCP, WebSocket, etc.
+- Always update relevant files with significant changes. For example, when changing tests make sure to update the tests/README.md file.
