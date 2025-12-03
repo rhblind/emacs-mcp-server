@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-integration clean test-file test-pattern test-verbose help
+.PHONY: test test-unit test-integration clean test-file test-pattern test-verbose install-deps help
 
 # Default target
 all: test
@@ -47,6 +47,10 @@ test-pattern:
 		-l test/unit/test-mcp-server-full.el \
 		-l test/unit/test-mcp-tools-working.el \
 		--eval "(ert-run-tests-batch-and-exit \"$(PATTERN)\")"
+
+# Install test dependencies (for CI)
+install-deps:
+	@echo "No external dependencies required - using built-in ERT"
 
 # Show help
 help:

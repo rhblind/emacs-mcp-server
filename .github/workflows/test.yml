@@ -55,4 +55,4 @@ jobs:
       run: make install-deps
     
     - name: Check byte compilation
-      run: emacs --batch --eval "(byte-compile-file \"mcp-server.el\")"
+      run: emacs --batch -L . --eval "(byte-compile-file \"mcp-server.el\")"
