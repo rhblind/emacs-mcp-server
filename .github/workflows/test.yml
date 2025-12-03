@@ -2,9 +2,9 @@ name: Test Suite
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
   test:
@@ -12,47 +12,49 @@ jobs:
     strategy:
       matrix:
         emacs_version:
-          - '28.1'
-          - '28.2'
-          - '29.1'
-          - '30.1'
-          - '30.2'
-          - 'snapshot'
-    
+          - "28.1"
+          - "28.2"
+          - "29.1"
+          - "30.1"
+          - "30.2"
+          - "snapshot"
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Emacs ${{ matrix.emacs_version }}
-      uses: purcell/setup-emacs@master
-      with:
-        version: ${{ matrix.emacs_version }}
-    
-    - name: Install test dependencies
-      run: make install-deps
-    
-    - name: Run unit tests
-      run: make test-unit
-      env:
-        CI: true
-    
-    - name: Run integration tests
-      run: make test-integration
-      env:
-        CI: true
-    
+      - uses: actions/checkout@v4
+
+      - name: Set up Emacs ${{ matrix.emacs_version }}
+        uses: purcell/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs_version }}
+
+      - name: Install test dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y socat
+          make install-deps
+
+      - name: Run unit tests
+        run: make test-unit
+        env:
+          CI: true
+
+      - name: Run integration tests
+        run: make test-integration
+        env:
+          CI: true
 
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Emacs 29.1
-      uses: purcell/setup-emacs@master
-      with:
-        version: '29.1'
-    
-    - name: Install test dependencies
-      run: make install-deps
-    
-    - name: Check byte compilation
-      run: emacs --batch -L . --eval "(byte-compile-file \"mcp-server.el\")"
+      - uses: actions/checkout@v4
+
+      - name: Set up Emacs 29.1
+        uses: purcell/setup-emacs@master
+        with:
+          version: "29.1"
+
+      - name: Install test dependencies
+        run: make install-deps
+
+      - name: Check byte compilation
+        run: emacs --batch -L . --eval "(byte-compile-file \"mcp-server.el\")"
