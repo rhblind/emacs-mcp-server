@@ -153,7 +153,7 @@ start_emacs_server() {
     local wait_count=0
     while [[ ! -S "$SOCKET_PATH" && $wait_count -lt $TEST_TIMEOUT ]]; do
         sleep 1
-        ((wait_count++))
+        ((wait_count++)) || true
         log_verbose "Waiting for socket... ($wait_count/$TEST_TIMEOUT)"
     done
     
@@ -172,15 +172,15 @@ run_test() {
     local test_func="$2"
     
     log_info "Running test: $test_name"
-    ((TESTS_RUN++))
+    ((TESTS_RUN++)) || true
     
     if $test_func; then
         log_success "✓ $test_name"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED++)) || true
         return 0
     else
         log_error "✗ $test_name"
-        ((TESTS_FAILED++))
+        ((TESTS_FAILED++)) || true
         return 1
     fi
 }
@@ -191,15 +191,22 @@ test_socket_exists() {
         log_error "Socket file does not exist: $SOCKET_PATH"
         return 1
     fi
-    
-    # Test basic connectivity
-    if timeout 2 bash -c "echo | socat - UNIX-CONNECT:$SOCKET_PATH" &>/dev/null; then
-        log_verbose "Socket is accessible"
-        return 0
-    else
-        log_error "Socket exists but is not accessible"
-        return 1
-    fi
+
+    # Test basic connectivity with retries (server may not be ready immediately)
+    local retry_count=0
+    local max_retries=3
+    while [[ $retry_count -lt $max_retries ]]; do
+        if timeout 2 bash -c "echo | socat - UNIX-CONNECT:$SOCKET_PATH" &>/dev/null; then
+            log_verbose "Socket is accessible"
+            return 0
+        fi
+        ((retry_count++)) || true
+        log_verbose "Socket connectivity check failed, retrying ($retry_count/$max_retries)..."
+        sleep 1
+    done
+
+    log_error "Socket exists but is not accessible after $max_retries attempts"
+    return 1
 }
 
 # Test 2: Shell script communication
