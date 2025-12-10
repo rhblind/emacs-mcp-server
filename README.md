@@ -4,7 +4,8 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Emacs](https://img.shields.io/badge/Emacs-28.1%20|%2028.2%20|%2029.1%20|%2030.1%20|%2030.2-purple)](https://www.gnu.org/software/emacs/)
 
-Connect Large Language Models directly to your Emacs environment! This MCP (Model Context Protocol) server exposes Emacs functionality through standardized tools, allowing LLMs like Claude to read and modify your buffers, execute elisp code, navigate files, and much more.
+Connect Large Language Models directly to your Emacs environment! This MCP (Model Context Protocol) server exposes Emacs functionality through standardized tools,
+allowing LLMs like Claude to read and modify your buffers, execute elisp code, navigate files, and much more.
 
 <div align="center">
   <img src="./demo/change-theme-demo.gif" alt="Change Theme Demo" width="80%" />
@@ -43,7 +44,7 @@ Alternatively, use package managers:
            :files ("*.el" "mcp-wrapper.py" "mcp-wrapper.sh")))
 ```
 
-**Start the server:** Run `M-x mcp-server-start-unix` in Emacs. The server creates a Unix socket at `~/.config/emacs/.local/cache/emacs-mcp-server.sock` (or similar based on your Emacs configuration).
+**Start the server:** Run `M-x mcp-server-start-unix` in Emacs. The server creates a Unix socket at `~/.config/emacs/.local/cache/emacs-mcp-server.sock`. 
 
 **Connect Claude Desktop:** Add this to your Claude Desktop configuration:
 
@@ -91,29 +92,10 @@ Once connected, LLMs can perform powerful operations in your Emacs environment:
 - Window management - get layout information, manage splits
 - Major mode operations - work with mode-specific functionality
 
-**Example Interactions:**
-- *"Add a docstring to this function"* → Claude reads your buffer, analyzes the function, and adds proper documentation
-- *"Refactor this code to use modern Python"* → Claude reads the code, suggests improvements, and can apply changes directly
-- *"Create a new React component file"* → Claude creates the file, adds boilerplate code, and opens it in a buffer
-- *"Fix the indentation in this buffer"* → Claude reads the content and applies proper formatting
-
 ## Available Tools
 
 **Current Tool:**
 - `eval-elisp` - Execute arbitrary elisp expressions safely and return the result
-
-**What you can do now:** With the `eval-elisp` tool, you can already accomplish a lot! LLMs can:
-- Read any buffer: `(buffer-string)` or `(with-current-buffer "filename.txt" (buffer-string))`
-- Write to buffers: `(insert "text")` or `(with-current-buffer "filename.txt" (insert "text"))`
-- Navigate files: `(find-file "path/to/file")` or `(switch-to-buffer "buffer-name")`
-- Get cursor position: `(point)` or `(line-number-at-pos)`
-- Move cursor: `(goto-char 100)` or `(goto-line 50)`
-- Get selections: `(if (region-active-p) (buffer-substring (region-beginning) (region-end)) "No selection")`
-- List buffers: `(mapcar #'buffer-name (buffer-list))`
-- Execute commands: `(call-interactively 'command-name)` or `(command-name)`
-- Access variables: `variable-name` or `(setq variable-name value)`
-
-**Planned tools** for future implementation include dedicated functions for buffer management (`get-buffer-content`, `set-buffer-content`, `get-buffer-list`), navigation (`get-point`, `goto-point`, `insert-at-point`), variable access (`get-variable`, `set-variable`), and window operations (`get-window-configuration`).
 
 ## Configuration
 
@@ -123,7 +105,7 @@ Once connected, LLMs can perform powerful operations in your Emacs environment:
 (setq mcp-server-socket-name nil)       ; Default: emacs-mcp-server.sock
 (setq mcp-server-socket-name 'user)     ; User-based: emacs-mcp-server-{username}.sock  
 (setq mcp-server-socket-name 'session)  ; Session-based: emacs-mcp-server-{username}-{pid}.sock
-(setq mcp-server-socket-name "custom")   ; Custom: emacs-mcp-server-custom.sock
+(setq mcp-server-socket-name "custom")  ; Custom: emacs-mcp-server-custom.sock
 ```
 
 **Other configuration options:**
@@ -230,7 +212,7 @@ M-x customize-group RET mcp-server RET
 
 ### Security Modes
 
-**Paranoid Mode (Maximum Security):**
+**Paranoid Mode:**
 ```elisp
 ;; Very restrictive - prompts for everything
 (setq mcp-server-security-dangerous-functions
@@ -239,7 +221,7 @@ M-x customize-group RET mcp-server RET
 (setq mcp-server-security-prompt-for-permissions t)
 ```
 
-**Permissive Mode (Development):**
+**Permissive Mode:**
 ```elisp
 ;; More relaxed for trusted development scenarios
 (setq mcp-server-security-allowed-dangerous-functions
@@ -249,7 +231,7 @@ M-x customize-group RET mcp-server RET
       '("~/.authinfo*" "~/.netrc*" "~/.ssh/" "~/.gnupg/"))
 ```
 
-**Whitelist-Only Mode (Ultra Secure):**
+**Whitelist-Only Mode:**
 ```elisp
 ;; Only allow explicitly whitelisted operations
 (setq mcp-server-security-prompt-for-permissions nil)  ; No prompts - just deny
@@ -286,9 +268,7 @@ Operations requiring explicit permission include file system operations (`delete
 ## Management Commands
 
 **Server control:** `M-x mcp-server-start-unix` (start), `M-x mcp-server-stop` (stop), `M-x mcp-server-restart` (restart), `M-x mcp-server-status` (show status)
-
 **Debugging and monitoring:** `M-x mcp-server-toggle-debug` (toggle debug logging), `M-x mcp-server-list-clients` (show connected clients), `M-x mcp-server-get-socket-path` (show socket path)
-
 **Security management:** `M-x mcp-server-security-show-audit-log` (view security log), `M-x mcp-server-security-show-permissions` (view cached permissions)
 
 ## Client Integration
@@ -333,7 +313,6 @@ Operations requiring explicit permission include file system operations (`delete
   }
 }
 ```
-
 
 ### Wrapper Scripts
 
@@ -389,7 +368,6 @@ print(response)
 **Quick test:** Run `./test/scripts/test-runner.sh` or test a specific socket with `./test/integration/test-unix-socket-fixed.sh ~/.emacs.d/.local/cache/emacs-mcp-server.sock`
 
 **Adding custom tools:**
-
 ```elisp
 (mcp-server-tools-register
  "my-tool"
@@ -405,25 +383,28 @@ print(response)
 
 ## Troubleshooting
 
-**Server won't start:** Check if socket directory exists and is writable, verify no other server is using the same socket path, check Emacs *Messages* buffer for error details.
+**Server won't start:**
+- Check if socket directory exists and is writable, verify no other server is using the same socket path, check Emacs *Messages* buffer for error details.
 
 **Socket not found:**
-1. Check if Emacs MCP Server is running: `M-x mcp-server-status`
-2. Verify socket path: `M-x mcp-server-get-socket-path` 
-3. List available sockets: `./mcp-wrapper.sh --list-sockets`
+- Check if Emacs MCP Server is running: `M-x mcp-server-status`
+- Verify socket path: `M-x mcp-server-get-socket-path` 
+- List available sockets: `./mcp-wrapper.sh --list-sockets`
 
 **Connection refused:**
-1. Check socket permissions: `ls -la ~/.emacs.d/.local/cache/emacs-mcp-server*.sock`
-2. Test socket connectivity: `echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | socat - UNIX-CONNECT:~/.emacs.d/.local/cache/emacs-mcp-server.sock`
+- Check socket permissions: `ls -la ~/.emacs.d/.local/cache/emacs-mcp-server*.sock`
+- Test socket connectivity: `echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | socat - UNIX-CONNECT:~/.emacs.d/.local/cache/emacs-mcp-server.sock`
 
 **MCP client issues:**
-1. Verify client configuration: Check JSON syntax and file paths
-2. Check client logs: Most MCP clients provide debug logging
-3. Test wrapper independently: Run wrapper script manually to verify connection
+- Verify client configuration: Check JSON syntax and file paths
+- Check client logs: Most MCP clients provide debug logging
+- Test wrapper independently: Run wrapper script manually to verify connection
 
-**Permission errors:** View audit log with `M-x mcp-server-security-show-audit-log`, grant specific permissions with `(mcp-server-security-grant-permission 'function-name)`, or disable prompting with `(mcp-server-security-set-prompting nil)`.
+**Permission errors:**
+- View audit log with `M-x mcp-server-security-show-audit-log`, grant specific permissions with `(mcp-server-security-grant-permission 'function-name)`, or disable prompting with `(mcp-server-security-set-prompting nil)`.
 
-**Debug mode:** Enable with `(setq mcp-server-debug t)` or toggle with `M-x mcp-server-toggle-debug`.
+**Debug mode:** 
+- Enable with `(setq mcp-server-debug t)` or toggle with `M-x mcp-server-toggle-debug`.
 
 ## Advanced Configuration
 
@@ -453,18 +434,39 @@ print(response)
 
 ## Architecture
 
-The server uses a modular design with a transport layer (Unix domain sockets, TCP planned), protocol layer (JSON-RPC 2.0 message handling), tool registry (Elisp functions exposed as MCP tools), and security layer (permission management and validation).
+The server uses a modular design with a transport layer (Unix domain sockets), protocol layer (JSON-RPC 2.0 message handling), tool registry (Elisp functions exposed as MCP tools), and security layer (permission management and validation).
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   LLM Client    │────│  Unix Socket     │────│  Emacs MCP      │
-│ (Claude/Python) │    │  Transport       │    │  Server         │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │
-                       ┌──────────────────┐
-                       │   MCP Tools      │
-                       │   (Elisp Funcs)  │
-                       └──────────────────┘
+```mermaid
+flowchart LR
+    subgraph Client
+        LLM[LLM Client<br/>Claude Desktop/CLI]
+    end
+
+    subgraph Bridge
+        Wrapper[mcp-wrapper<br/>stdio ↔ socket]
+    end
+
+    subgraph Emacs
+        subgraph Transport
+            Socket[Unix Socket<br/>Transport]
+        end
+
+        subgraph MCP["MCP Server"]
+            Protocol[Protocol Layer<br/>JSON-RPC 2.0]
+            Security[Security Layer<br/>Permissions]
+            Tools[Tool Registry]
+        end
+
+        Elisp[Emacs Lisp<br/>Runtime]
+    end
+
+    LLM <-->|stdio| Wrapper
+    Wrapper <-->|Unix Socket| Socket
+    Socket <-->|Messages| Protocol
+    Protocol --> Security
+    Security --> Tools
+    Tools --> Elisp
+    Elisp -->|Result| Protocol
 ```
 
 ## License
