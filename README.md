@@ -451,6 +451,9 @@ flowchart LR
             Socket[Unix Socket<br/>Transport]
         end
 
+        spacer[ ]
+        style spacer fill:none,stroke:none
+
         subgraph MCP["MCP Server"]
             Protocol[Protocol Layer<br/>JSON-RPC 2.0]
             Security[Security Layer<br/>Permissions]
