@@ -10,7 +10,7 @@ This directory contains the test suite for the Emacs MCP Server implementation.
 make test
 ```
 
-This runs both unit tests (39 ERT tests) and integration tests (6 tests).
+This runs both unit tests (79 ERT tests) and integration tests (6 tests).
 
 ### Run Specific Test Categories
 
@@ -38,6 +38,8 @@ test/
 ├── unit/                    # ERT unit tests
 │   ├── test-simple.el       # Basic infrastructure tests
 │   ├── test-mcp-basic.el    # JSON-RPC and protocol pattern tests
+│   ├── test-mcp-emacs-tools.el    # eval-elisp and get-diagnostics tool tests
+│   ├── test-mcp-security.el       # Security module tests (sensitive files, permissions)
 │   ├── test-mcp-server-full.el    # Server integration tests
 │   └── test-mcp-tools-working.el  # Tool registry tests
 ├── integration/             # Integration tests
@@ -72,6 +74,32 @@ Basic infrastructure tests to verify the test framework works.
 - Server state management
 - Debug toggle functionality
 - Socket configuration
+
+### test-mcp-emacs-tools.el
+- eval-elisp tool: expression evaluation, error handling
+- get-diagnostics tool: structure, severity filtering, sorting
+- Tool registration and filtering
+
+### test-mcp-security.el
+Tests for `mcp-server-security`:
+- `mcp-server-security--is-sensitive-file`: pattern matching for `~/`-prefixed,
+  absolute-path, and bare-filename patterns; allowed-files bypass; nil/non-string inputs
+- `mcp-server-security--is-dangerous-operation`: symbol operations, allowed-list bypass,
+  name-pattern matching, string operation IDs (regression: `symbol-name` on string)
+- `mcp-server-security--check-form-safety`: blocks dangerous functions, allows safe
+  functions, blocks sensitive file access even when function is in the allowed list,
+  recursive argument checking
+- Issue #9 regression: `eval-elisp` must block `(find-file "~/.ssh/id_rsa")` even
+  when `find-file` is in `mcp-server-security-allowed-dangerous-functions`
+- Glob patterns: `~/.authinfo*` matches all `.authinfo` variants via `wildcard-to-regexp`
+- New dangerous functions: `with-temp-file`, `write-file`, `append-to-file`,
+  `make-network-process`, `open-network-stream`, `directory-files`,
+  `directory-files-recursively`, `insert-file-contents-literally`
+- Sensitive file check for multi-arg functions: `copy-file` (src + dst),
+  `rename-file` (src + dst), `write-region` (arg 3), `write-file` (arg 1)
+- Permission caching: storage, cache hits, clear
+- Input validation: shell metacharacters, dangerous elisp patterns, length limit
+- Audit logging: event recording, denial logging, 1000-entry cap
 
 ### test-mcp-tools-working.el
 - Tool registration

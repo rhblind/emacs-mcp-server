@@ -177,8 +177,8 @@ Retrieves errors and warnings from flycheck or flymake (auto-detected per buffer
 ### Security Features
 
 **Permission System:**
-- **Dangerous function protection** - Functions like `delete-file`, `shell-command`, `find-file` require user approval
-- **Sensitive file protection** - Automatic blocking of credential files (`.authinfo`, `.netrc`, SSH keys, etc.)
+- **Dangerous function protection** - Functions like `delete-file`, `shell-command`, `find-file`, `write-file`, `make-network-process`, `make-process`, `async-shell-command`, `setenv` require user approval
+- **Sensitive file protection** - Automatic blocking of credential files (`.authinfo`, `.netrc`, SSH keys, etc.) for both reads and writes, even when the function itself is allowed
 - **Buffer access controls** - Protection for sensitive buffers like `*Messages*`, `*shell*`, `*terminal*`
 - **Permission caching** - Decisions are remembered for the session to avoid repeated prompts
 - **Audit logging** - Complete trail of all security events and decisions
@@ -198,9 +198,9 @@ Retrieves errors and warnings from flycheck or flymake (auto-detected per buffer
 
 The security model provides defense-in-depth but has known limitations:
 
-- **Blocklist bypass via indirection** - The dangerous function blocklist checks direct function calls, but `funcall`, `apply`, or `(intern "shell-command")` can bypass it
-- **Macro evaluation** - Macros that expand to dangerous code execute at compile-time before security checks
-- **Dynamic function construction** - Code can construct function names at runtime to evade static analysis
+- **`let`-binding positions not fully checked** - The static form walker does not recurse into `let`/`let*` binding-value positions, so `(let ((x (shell-command "id"))) x)` bypasses the blocklist. Tracked in [#10](https://github.com/rhblind/emacs-mcp-server/issues/10).
+- **Dynamic function construction** - Code can construct function names at runtime to evade static analysis: `(funcall (intern "delete-file") "/tmp/test")` passes the checker. Tracked in [#10](https://github.com/rhblind/emacs-mcp-server/issues/10).
+- **Macro expansion** - The form walker operates on unexpanded forms. Macros that wrap dangerous calls in non-tail positions (other than `let` bindings) may not be caught.
 
 **This means:** Using `eval-elisp` requires trusting the LLM completely. The security controls reduce risk of accidental harm but cannot prevent a determined adversary.
 
@@ -211,13 +211,15 @@ For higher security requirements, consider:
 
 ### Default Protected Files
 
-The server automatically protects these sensitive file patterns:
+The server automatically protects these sensitive file patterns.
+
+Patterns starting with `~/` or `/` are matched as path prefixes after expanding `~`. Patterns containing `*` or `?` are treated as shell globs (e.g. `~/.authinfo*` matches `~/.authinfo`, `~/.authinfo.gpg`, `~/.authinfo.enc`, etc.). Bare filename patterns (no leading `~/`) match against the file's basename.
 
 **Authentication Files:**
-- `~/.authinfo*` - Emacs authentication data
-- `~/.netrc*` - Network authentication credentials  
-- `~/.ssh/` - SSH keys and configuration
-- `~/.gnupg/` - GPG keys and configuration
+- `~/.authinfo` and variants - Emacs authentication data
+- `~/.netrc` and variants - Network authentication credentials
+- `~/.ssh/` - SSH keys and configuration (entire directory)
+- `~/.gnupg/` - GPG keys and configuration (entire directory)
 
 **Cloud & Service Credentials:**
 - `~/.aws/` - AWS credentials
@@ -232,17 +234,25 @@ The server automatically protects these sensitive file patterns:
 
 ### Security Configuration
 
+The default settings aim for a reasonable balance between security and usability: the most commonly dangerous functions are blocked, well-known credential files are protected, and operations fail silently rather than prompting. These defaults will not suit every workflow. You are encouraged to review them and adjust to your own needs, for example by tightening the dangerous function list, adding project-specific sensitive file patterns, or enabling prompts instead of silent denial.
+
 Users have complete control over the security model through customizable settings:
 
 **Customize Sensitive Files:**
 ```elisp
-;; Add your own sensitive file patterns
+;; Add your own sensitive file patterns.
+;; Patterns starting with ~/ or / are matched as path prefixes (after expanding ~).
+;; Patterns containing * or ? are treated as shell globs.
+;; Bare filename patterns match against the file's basename.
 (setq mcp-server-security-sensitive-file-patterns
-      '("~/.authinfo" "~/.ssh/" "~/my-secrets/" "*.key"))
+      '("~/.authinfo*"    ; glob: matches .authinfo, .authinfo.gpg, .authinfo.enc, ...
+        "~/.ssh/"         ; prefix: matches everything under ~/.ssh/
+        "~/my-secrets/"   ; prefix: matches everything under ~/my-secrets/
+        ".key"))          ; basename: matches any file whose name contains ".key"
 
 ;; Allow specific sensitive files without prompting
 (setq mcp-server-security-allowed-sensitive-files
-      '("~/.authinfo" "~/safe-config.txt"))
+      '("~/.ssh/known_hosts" "~/safe-config.txt"))
 ```
 
 **Customize Dangerous Functions:**
@@ -258,7 +268,7 @@ Users have complete control over the security model through customizable setting
 
 **Global Security Settings:**
 ```elisp
-;; Disable all permission prompts (not recommended)
+;; Block dangerous operations silently without prompting (default)
 (setq mcp-server-security-prompt-for-permissions nil)
 
 ;; Customize execution timeout
@@ -289,7 +299,7 @@ M-x customize-group RET mcp-server RET
 ```elisp
 ;; More relaxed for trusted development scenarios
 (setq mcp-server-security-allowed-dangerous-functions
-      '(find-file dired switch-to-buffer insert-file-contents))
+      '(find-file dired insert-file-contents))
 ;; Keep file protections for credentials
 (setq mcp-server-security-sensitive-file-patterns
       '("~/.authinfo*" "~/.netrc*" "~/.ssh/" "~/.gnupg/"))
@@ -327,7 +337,7 @@ M-x mcp-server-security-clear-permissions  ; Reset all cached permissions
 4. **Monitor credentials** - Be especially careful with any files containing passwords or API keys
 5. **Test security** - Verify your configuration blocks unauthorized access as expected
 
-Operations requiring explicit permission include file system operations (`delete-file`, `write-region`), process execution (`shell-command`, `call-process`), system functions (`kill-emacs`, `server-start`), and access to sensitive files or buffers.
+Operations requiring explicit permission include file system operations (`delete-file`, `write-region`, `write-file`, `append-to-file`, `copy-file`, `rename-file`, `with-temp-file`), process execution (`shell-command`, `call-process`, `start-process`), network access (`make-network-process`, `open-network-stream`, `url-retrieve`), directory enumeration (`directory-files`, `directory-files-recursively`), system functions (`kill-emacs`, `server-start`), and access to sensitive files or buffers.
 
 ## Management Commands
 

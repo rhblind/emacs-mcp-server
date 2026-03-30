@@ -22,11 +22,15 @@
 ;;; Variables
 
 (defcustom mcp-server-security-dangerous-functions
-  '(browse-url
+  '(append-to-file
+    async-shell-command
+    browse-url
     call-process
     copy-file
     delete-directory
     delete-file
+    directory-files
+    directory-files-recursively
     dired
     eval
     find-file
@@ -34,29 +38,30 @@
     find-file-noselect
     getenv
     insert-file-contents
+    insert-file-contents-literally
     kill-emacs
     load
     make-directory
-    process-environment
+    make-network-process
+    make-process
+    open-network-stream
     rename-file
-    require
     save-buffers-kill-emacs
     save-buffers-kill-terminal
-    save-current-buffer
     server-force-delete
     server-start
-    set-buffer
     set-file-modes
     set-file-times
+    setenv
     shell-command
     shell-command-to-string
-    shell-environment
     start-process
-    switch-to-buffer
     url-retrieve
     url-retrieve-synchronously
     view-file
     with-current-buffer
+    with-temp-file
+    write-file
     write-region)
   "List of functions that require permission before execution.
 Users can customize this list to add or remove functions that should
@@ -171,12 +176,19 @@ Returns 'yes, 'no, or 'always."
       (?! 'always))))
 
 (defun mcp-server-security--is-dangerous-operation (operation)
-  "Check if OPERATION is considered dangerous."
-  ;; First check if function is explicitly allowed
-  (unless (member operation mcp-server-security-allowed-dangerous-functions)
-    ;; Then check if it's in the dangerous functions list or matches dangerous patterns
-    (or (member operation mcp-server-security-dangerous-functions)
-        (string-match-p "delete\\|kill\\|remove\\|destroy" (symbol-name operation)))))
+  "Check if OPERATION is considered dangerous.
+OPERATION is either a symbol (a function name) or a string synthetic ID
+such as \"access-sensitive-file:find-file\" produced by the sensitive
+file/buffer check paths.  String ops prefixed with \"access-sensitive-\"
+are always treated as dangerous so they are denied when prompting is off."
+  (if (stringp operation)
+      ;; Synthetic string IDs from sensitive file/buffer checks are dangerous
+      (string-prefix-p "access-sensitive-" operation)
+    ;; Symbol: check the allowed list, dangerous list, and name patterns
+    (unless (member operation mcp-server-security-allowed-dangerous-functions)
+      (or (member operation mcp-server-security-dangerous-functions)
+          (string-match-p "delete\\|kill\\|remove\\|destroy"
+                          (symbol-name operation))))))
 
 (defun mcp-server-security--is-sensitive-file (path)
   "Check if PATH points to a sensitive file."
@@ -186,10 +198,25 @@ Returns 'yes, 'no, or 'always."
       (unless (cl-some (lambda (allowed-file)
                          (string-equal (expand-file-name allowed-file) expanded-path))
                        mcp-server-security-allowed-sensitive-files)
-        ;; Then check if it matches any sensitive patterns
+        ;; Then check if it matches any sensitive patterns.
+        ;;
+        ;; Patterns starting with ~ or / are expanded before comparison so that
+        ;; e.g. "~/.ssh/" correctly matches the expanded path "/home/user/.ssh/id_rsa".
+        ;;
+        ;; Patterns containing * or ? are treated as shell glob wildcards via
+        ;; `wildcard-to-regexp', so "~/.authinfo*" matches "~/.authinfo.gpg" etc.
+        ;;
+        ;; Bare filename patterns (no leading ~ or /) are matched literally
+        ;; against the file's basename only.
         (cl-some (lambda (pattern)
-                   (or (string-match-p (regexp-quote pattern) expanded-path)
-                       (string-match-p pattern (file-name-nondirectory expanded-path))))
+                   (if (string-match-p "^[~/]" pattern)
+                       (let ((expanded-pattern (expand-file-name pattern)))
+                         (if (string-match-p "[*?]" pattern)
+                             (string-match-p (wildcard-to-regexp expanded-pattern)
+                                             expanded-path)
+                           (string-prefix-p expanded-pattern expanded-path)))
+                     (string-match-p (regexp-quote pattern)
+                                     (file-name-nondirectory expanded-path))))
                  mcp-server-security-sensitive-file-patterns)))))
 
 (defun mcp-server-security--is-sensitive-buffer (buffer-name)
@@ -279,14 +306,32 @@ to allow, or set `mcp-server-security-prompt-for-permissions' to t to prompt" fo
               (error "Security: `%s' is blocked. Add it to `mcp-server-security-allowed-dangerous-functions' \
 to allow, or set `mcp-server-security-prompt-for-permissions' to t to prompt" func)))
 
-          ;; Special checks for file access functions
-          (when (memq func '(find-file find-file-noselect view-file insert-file-contents))
-            (let ((file-path (car args)))
-              (when (and file-path (stringp file-path))
-                (when (mcp-server-security--is-sensitive-file file-path)
-                  (unless (mcp-server-security-check-permission
-                           (format "access-sensitive-file:%s" func) file-path)
-                    (error "Permission denied for sensitive file access: %s" file-path))))))
+          ;; Special checks for file access functions.
+          ;; Each entry maps a function to the 1-based positions of its file-path
+          ;; arguments.  Both read and write paths are covered so that sensitive
+          ;; files cannot be read from OR written to, even when the function is
+          ;; listed in `mcp-server-security-allowed-dangerous-functions'.
+          (let ((file-arg-specs
+                 '((find-file                    . (1))
+                   (find-file-noselect           . (1))
+                   (find-file-literally          . (1))
+                   (view-file                    . (1))
+                   (insert-file-contents         . (1))
+                   (insert-file-contents-literally . (1))
+                   (write-file                   . (1))
+                   (copy-file                    . (1 2))
+                   (rename-file                  . (1 2))
+                   (write-region                 . (3))
+                   (append-to-file               . (3)))))
+            (when-let ((positions (alist-get func file-arg-specs)))
+              (dolist (pos positions)
+                (let ((file-path (nth (1- pos) args)))
+                  (when (and file-path (stringp file-path))
+                    (when (mcp-server-security--is-sensitive-file file-path)
+                      (unless (mcp-server-security-check-permission
+                               (format "access-sensitive-file:%s" func) file-path)
+                        (error "Permission denied for sensitive file access: %s"
+                               file-path))))))))
 
           ;; Special checks for buffer access functions
           (when (memq func '(switch-to-buffer set-buffer with-current-buffer))
