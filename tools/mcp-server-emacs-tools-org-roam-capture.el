@@ -38,10 +38,12 @@
             (with-current-buffer (find-file-noselect file)
               (save-excursion
                 (goto-char (point-min))
-                (dolist (alias (append aliases nil))
-                  (org-set-property "ROAM_ALIASES" alias))
-                (dolist (ref (append refs nil))
-                  (org-set-property "ROAM_REFS" ref))
+                (when aliases
+                  (org-set-property "ROAM_ALIASES"
+                                    (mapconcat #'identity (append aliases nil) " ")))
+                (when refs
+                  (org-set-property "ROAM_REFS"
+                                    (mapconcat #'identity (append refs nil) " ")))
                 (when tags
                   (when (re-search-forward "^\\*" nil t) (beginning-of-line))
                   (org-set-tags (append tags nil)))
