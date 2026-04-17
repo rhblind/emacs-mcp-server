@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0] - 2026-03-31
+## [0.6.0](https://github.com/rhblind/emacs-mcp-server/compare/v0.5.0...v0.6.0) (2026-03-31)
 
 ### Fixed
 - `mcp-server-security--is-sensitive-file`: patterns using `~/` prefix (e.g. `"~/.ssh/"`) were never matched because the input path was expanded with `expand-file-name` but the patterns were not, causing the literal `~` to fail against an absolute path (issue #9)
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive unit test suite for `mcp-server-security` (79 ERT tests total)
 - Known limitation documented and tracked: static form walker does not recurse into `let`-binding value positions and cannot detect dynamically-constructed function names (`funcall` + `intern`); see issue #10
 
-## [0.4.0] - 2026-01-08
+## [0.4.0](https://github.com/rhblind/emacs-mcp-server/compare/v0.3.0...v0.4.0) (2026-01-08)
 
 ### Added
 - `get-diagnostics` tool for flycheck/flymake error reporting
@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Backward compatibility variable aliases in security module
 
-## [0.3.0] - 2026-01-07
+## [0.3.0](https://github.com/rhblind/emacs-mcp-server/compare/v0.2.0...v0.3.0) (2026-01-07)
 
 ### Added
 - Granular permission prompts with session management
@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Test runner with safeguards and retries for socket operations
 
-## [0.2.0] - 2026-01-06
+## [0.2.0](https://github.com/rhblind/emacs-mcp-server/compare/v0.1.0...v0.2.0) (2026-01-06)
 
 ### Added
 - Enhanced sensitive file and function protection
@@ -70,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Improved documentation with socat requirement note
 
-## [0.1.0] - 2026-01-01
+## [0.1.0](https://github.com/rhblind/emacs-mcp-server/releases/tag/v0.1.0) (2026-01-01)
 
 ### Added
 - Initial MCP server implementation in pure Elisp
@@ -83,8 +83,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite
 - Demo images for theme change and poem writing
 
-[0.6.0]: https://github.com/rhblind/emacs-mcp-server/compare/v0.5.0...v0.6.0
-[0.4.0]: https://github.com/rhblind/emacs-mcp-server/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/rhblind/emacs-mcp-server/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/rhblind/emacs-mcp-server/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/rhblind/emacs-mcp-server/releases/tag/v0.1.0
