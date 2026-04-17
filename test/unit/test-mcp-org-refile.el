@@ -28,5 +28,29 @@
   "Tool is registered."
   (should (mcp-server-tools-exists-p "org-refile")))
 
+(ert-deftest mcp-test-org-refile-rejects-descendant-target ()
+  "refile errors when target is inside source subtree."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    ;; Move `Project Alpha' (which contains `Design') into `Design'.
+    ;; That would place Alpha inside its own subtree -- must fail.
+    (let* ((json (mcp-server-emacs-tools-org-refile--handler
+                  '((source . ((id . "alpha-root-0001")))
+                    (target . ((id . "alpha-design-0001"))))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should (alist-get 'error result)))))
+
+(ert-deftest mcp-test-org-refile-by-olp ()
+  "refile also works when source/target are specified by outline_path."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    (mcp-server-emacs-tools-org-refile--handler
+     `((source . ((file . ,path) (outline_path . ["Project Alpha" "Implementation"])))
+       (target . ((id . "beta-root-0001")))))
+    (with-temp-buffer
+      (insert-file-contents path)
+      (let ((buf (buffer-string)))
+        ;; "Implementation" should now be under Project Beta.
+        ;; Find it after "Project Beta" heading.
+        (should (string-match-p "\\*+ Project Beta[^*]*\\*+ Implementation" buf))))))
+
 (provide 'test-mcp-org-refile)
 ;;; test-mcp-org-refile.el ends here
