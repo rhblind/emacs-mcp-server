@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1](https://github.com/rhblind/emacs-mcp-server/compare/v0.6.0...v0.6.1) (2026-04-17)
+
+
+### Bug Fixes
+
+* **capabilities:** Remove unimplemented capabilities to prevent client from hanging ([40b88ac](https://github.com/rhblind/emacs-mcp-server/commit/40b88acc209025bb7e7177bd27d11a9bb0078b2d))
+* **capabilities:** Remove unimplemented capabilities to prevent client hangs ([9df7846](https://github.com/rhblind/emacs-mcp-server/commit/9df784625db7b4cbd20564456096df636f417cf8)), closes [#14](https://github.com/rhblind/emacs-mcp-server/issues/14)
+* remove leading dot from release-please-manifest.json filename ([d80b24a](https://github.com/rhblind/emacs-mcp-server/commit/d80b24a885b7ddf08a7779ef92f90f7af6c5e922))
+
 ## [0.6.0](https://github.com/rhblind/emacs-mcp-server/compare/v0.5.0...v0.6.0) (2026-03-31)
 
 ### Fixed
@@ -82,4 +91,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python and shell wrapper scripts for MCP client integration
 - Comprehensive test suite
 - Demo images for theme change and poem writing
-
