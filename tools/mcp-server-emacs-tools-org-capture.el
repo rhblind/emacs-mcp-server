@@ -14,18 +14,16 @@
 (require 'json)
 
 (defun mcp-server-emacs-tools-org-capture--template-mode (args)
-  "Run org-capture with a template from ARGS."
+  "Run org-capture with a template from ARGS.
+Always finalizes synchronously; `immediate_finish' arg is accepted but ignored
+because MCP calls are non-interactive."
   (let* ((key (alist-get 'template_key args))
          (content (alist-get 'content args))
-         (immediate (alist-get 'immediate_finish args t))
          (org-capture-initial (or content ""))
          (org-capture-templates-contexts nil))
     (save-window-excursion
-      (if immediate
-          (org-capture nil key)
-        (org-capture nil key))
-      (when (and (not immediate)
-                 (buffer-live-p (get-buffer "*Capture*")))
+      (org-capture nil key)
+      (when (buffer-live-p (get-buffer "*Capture*"))
         (with-current-buffer "*Capture*" (org-capture-finalize))))
     (when (and (boundp 'org-capture-last-stored-marker)
                (markerp org-capture-last-stored-marker))
@@ -111,7 +109,6 @@
   :input-schema '((type . "object")
                   (properties . ((template_key . ((type . "string")))
                                  (content . ((type . "string")))
-                                 (immediate_finish . ((type . "boolean")))
                                  (file . ((type . "string")))
                                  (outline_path . ((type . "array")
                                                   (items . ((type . "string")))))
