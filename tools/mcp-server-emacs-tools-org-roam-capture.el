@@ -15,6 +15,7 @@
                   (&key keys node templates info props))
 (declare-function org-roam-node-create "org-roam-node" (&rest slots))
 (declare-function org-roam-db-query "org-roam-db" (sql &rest args))
+(declare-function org-roam-db-sync "org-roam-db" ())
 
 (defun mcp-server-emacs-tools-org-roam-capture--direct (args)
   "Create a new roam node directly from ARGS without a template."
@@ -29,6 +30,7 @@
             :target (file+head "${slug}.org" "#+title: ${title}\n")
             :immediate-finish t :unnarrowed t)))
     (org-roam-capture- :node node :templates (list synthetic-template))
+    (org-roam-db-sync)
     (let ((rows (org-roam-db-query
                  [:select [id file] :from nodes :where (= title $s1)]
                  title)))
@@ -58,6 +60,7 @@
          (org-capture-initial (or content ""))
          (node (org-roam-node-create :title title)))
     (org-roam-capture- :keys key :node node)
+    (org-roam-db-sync)
     (let ((rows (org-roam-db-query
                  [:select [id file] :from nodes :where (= title $s1)]
                  title)))
