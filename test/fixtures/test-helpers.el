@@ -207,5 +207,35 @@
   (when (require 'undercover nil t)
     (undercover "*.el")))
 
+;;; Org Fixture Helpers
+
+(require 'org-id)
+
+(defun mcp-test-org-fixtures-dir ()
+  "Return absolute path to the org fixtures directory."
+  (let* ((this-file (or load-file-name buffer-file-name
+                        (locate-library "test-helpers"))))
+    (expand-file-name "../fixtures/org"
+                      (file-name-directory this-file))))
+
+(defmacro mcp-test-with-org-fixture (fixture-name path-var &rest body)
+  "Copy org FIXTURE-NAME to a temp path bound to PATH-VAR, run BODY.
+Also binds `org-id-locations' to a fresh hash table so each test is isolated."
+  (declare (indent 2))
+  `(let* ((src (expand-file-name ,fixture-name (mcp-test-org-fixtures-dir)))
+          (tmp-dir (make-temp-file "mcp-test-org-" t))
+          (,path-var (expand-file-name ,fixture-name tmp-dir))
+          (org-id-locations (make-hash-table :test 'equal))
+          (org-id-files nil))
+     (unwind-protect
+         (progn
+           (copy-file src ,path-var t)
+           (org-id-update-id-locations (list ,path-var))
+           ,@body)
+       (when (file-exists-p ,path-var)
+         (delete-file ,path-var))
+       (when (file-exists-p tmp-dir)
+         (delete-directory tmp-dir t)))))
+
 (provide 'test-helpers)
 ;;; test-helpers.el ends here
