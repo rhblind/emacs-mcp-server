@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- `mcp-server-capabilities`: the server advertised `tools.listChanged`, `resources.subscribe`, `resources.listChanged`, and `prompts.listChanged` despite never emitting any of the corresponding notifications (issue #14). Clients relying on these could wait for notifications that never arrived. Capabilities now advertise only `tools` as an empty object (`{"tools":{}}`), indicating tools exist without optional sub-capabilities. The unused `resources/list`, `resources/read`, and `prompts/list` stub handlers have been removed; requests for these methods now correctly return JSON-RPC error `-32601` (method not found)
+- `mcp-server-capabilities`: the server advertised `tools.listChanged`, `resources.subscribe`, `resources.listChanged`, and `prompts.listChanged` despite never emitting any of the corresponding notifications (issue #14). Clients relying on these could wait for notifications that never arrived. Capabilities now advertise only `tools` as an empty object (`{"tools":{}}`), indicating tools exist without optional sub-capabilities. The unused `resources/list`, `resources/read`, and `prompts/list` stub handlers have been removed; requests for these methods now correctly return JSON-RPC error `-32601` (method not found).
 
 ## [0.6.0] - 2026-03-31
 

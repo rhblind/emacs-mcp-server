@@ -70,6 +70,26 @@ not found) which is the correct response."
   (should-not (fboundp 'mcp-server--handle-resources-read))
   (should-not (fboundp 'mcp-server--handle-prompts-list)))
 
+(ert-deftest mcp-test-unimplemented-methods-return-method-not-found ()
+  "Requests for unadvertised methods must return JSON-RPC -32601.
+Issue #14: after removing the stub handlers for `resources/list',
+`resources/read', and `prompts/list', the message router must fall
+through to the catch-all branch that emits `Method not found'."
+  (dolist (method '("resources/list" "resources/read" "prompts/list"))
+    (let ((captured nil))
+      (cl-letf (((symbol-function 'mcp-server-transport-send)
+                 (lambda (_transport _client-id response)
+                   (setq captured response))))
+        (mcp-server--handle-message
+         `((jsonrpc . "2.0") (id . 42) (method . ,method))
+         "test-client"))
+      (should captured)
+      (let ((err (alist-get 'error captured)))
+        (should err)
+        (should (= (alist-get 'code err) -32601))
+        (should (string= (alist-get 'message err) "Method not found"))
+        (should (string= (alist-get 'data err) method))))))
+
 ;;; Server Function Tests
 
 (ert-deftest mcp-test-server-functions-exist ()
