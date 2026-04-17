@@ -137,6 +137,41 @@ to `mcp-server-emacs-tools-org-max-body-bytes'."
            (setq result (append result '((truncated . t)))))
          result)))))
 
+(defun mcp-server-emacs-tools-org-common--effective-roots ()
+  "Return the effective list of allowed directory roots.
+Uses `mcp-server-emacs-tools-org-allowed-roots' if set, otherwise
+falls back to directories containing `org-directory' and
+`org-agenda-files'."
+  (or mcp-server-emacs-tools-org-allowed-roots
+      (let ((roots '()))
+        (when (bound-and-true-p org-directory)
+          (push (file-name-as-directory (expand-file-name org-directory))
+                roots))
+        (dolist (f (and (bound-and-true-p org-agenda-files)
+                        (if (functionp 'org-agenda-files)
+                            (org-agenda-files)
+                          org-agenda-files)))
+          (when (stringp f)
+            (push (file-name-as-directory
+                   (expand-file-name (file-name-directory f)))
+                  roots)))
+        (delete-dups roots))))
+
+(defun mcp-server-emacs-tools-org-common--validate-path (path)
+  "Validate PATH is inside an allowed root.
+Returns PATH (expanded) on success; signals an error on failure."
+  (let* ((abs (expand-file-name path))
+         (roots (mcp-server-emacs-tools-org-common--effective-roots)))
+    (unless roots
+      (error "No allowed roots configured; set `mcp-server-emacs-tools-org-allowed-roots' or `org-directory'"))
+    (unless (cl-some (lambda (root)
+                       (string-prefix-p (file-name-as-directory
+                                         (expand-file-name root))
+                                        abs))
+                     roots)
+      (error "Path %s is outside allowed roots: %S" abs roots))
+    abs))
+
 (provide 'mcp-server-emacs-tools-org-common)
 
 ;;; mcp-server-emacs-tools-org-common.el ends here

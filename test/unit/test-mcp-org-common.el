@@ -99,5 +99,40 @@
         (should (<= (length (alist-get 'body alist)) 10))
         (should (eq (alist-get 'truncated alist) t))))))
 
+(ert-deftest mcp-test-org-common-validate-path-within-root ()
+  "validate-path accepts a path inside an allowed root."
+  (let* ((tmp-root (make-temp-file "mcp-root-" t))
+         (file (expand-file-name "ok.org" tmp-root))
+         (mcp-server-emacs-tools-org-allowed-roots (list tmp-root)))
+    (unwind-protect
+        (progn
+          (with-temp-file file (insert "ok"))
+          (should (mcp-server-emacs-tools-org-common--validate-path file)))
+      (delete-directory tmp-root t))))
+
+(ert-deftest mcp-test-org-common-validate-path-outside-root ()
+  "validate-path rejects a path outside allowed roots."
+  (let* ((tmp-root (make-temp-file "mcp-root-" t))
+         (outside (make-temp-file "mcp-outside-" nil ".org"))
+         (mcp-server-emacs-tools-org-allowed-roots (list tmp-root)))
+    (unwind-protect
+        (should-error
+         (mcp-server-emacs-tools-org-common--validate-path outside))
+      (delete-directory tmp-root t)
+      (when (file-exists-p outside) (delete-file outside)))))
+
+(ert-deftest mcp-test-org-common-validate-path-default-root-from-org-directory ()
+  "When allowed-roots is nil, derives from org-directory."
+  (let* ((tmp-root (make-temp-file "mcp-root-" t))
+         (file (expand-file-name "ok.org" tmp-root))
+         (org-directory tmp-root)
+         (org-agenda-files nil)
+         (mcp-server-emacs-tools-org-allowed-roots nil))
+    (unwind-protect
+        (progn
+          (with-temp-file file (insert "ok"))
+          (should (mcp-server-emacs-tools-org-common--validate-path file)))
+      (delete-directory tmp-root t))))
+
 (provide 'test-mcp-org-common)
 ;;; test-mcp-org-common.el ends here
