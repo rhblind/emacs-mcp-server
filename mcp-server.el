@@ -5,7 +5,7 @@
 ;; Author: Claude Code + Rolf Håvard Blindheim<rhblind@gmail.com>
 ;; URL: https://github.com/rhblind/emacs-mcp-server
 ;; Keywords: mcp, protocol, integration, tools
-;; Version: 0.6.0
+;; Version: 0.6.0 ;; x-release-please-version
 ;; Package-Requires: ((emacs "27.1"))
 
 ;; This file is NOT part of GNU Emacs.
@@ -61,7 +61,7 @@
 
 ;;; Constants
 
-(defconst mcp-server-version "0.6.0"
+(defconst mcp-server-version "0.6.0" ; x-release-please-version
   "Version of the Emacs MCP server.")
 
 (defconst mcp-server-protocol-version "2024-11-05"
