@@ -221,7 +221,8 @@
 (defmacro mcp-test-with-org-fixture (fixture-name path-var &rest body)
   "Copy org FIXTURE-NAME to a temp path bound to PATH-VAR, run BODY.
 Isolates org-id state so tests never touch the user's real
-`org-id-locations-file'."
+`org-id-locations-file'.  Also scopes `mcp-server-emacs-tools-org-allowed-roots'
+to the temp directory so path validation accepts the fixture file."
   (declare (indent 2))
   `(let* ((src (expand-file-name ,fixture-name (mcp-test-org-fixtures-dir)))
           (tmp-dir (make-temp-file "mcp-test-org-" t))
@@ -229,7 +230,8 @@ Isolates org-id state so tests never touch the user's real
           (org-id-locations (make-hash-table :test 'equal))
           (org-id-files nil)
           (org-id-track-globally t)
-          (org-id-locations-file (expand-file-name ".org-id-locations" tmp-dir)))
+          (org-id-locations-file (expand-file-name ".org-id-locations" tmp-dir))
+          (mcp-server-emacs-tools-org-allowed-roots (list tmp-dir)))
      (unwind-protect
          (progn
            (copy-file src ,path-var t)
