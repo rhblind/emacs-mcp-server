@@ -42,6 +42,38 @@ Larger bodies are truncated and the response carries a `truncated' flag."
   :type 'integer
   :group 'mcp-server-emacs-tools-org)
 
+(defun mcp-server-emacs-tools-org-common--resolve-node (args)
+  "Resolve ARGS to a marker pointing at an org heading.
+ARGS is an alist that must include either:
+  (id . STRING) - org-id; looked up via `org-id-find'
+  (file . STRING) + (outline_path . VECTOR) - looked up via `org-find-olp'
+Signals an error if the node cannot be located."
+  (let ((id (alist-get 'id args))
+        (file (alist-get 'file args))
+        (olp (alist-get 'outline_path args)))
+    (cond
+     (id
+      (let ((location (org-id-find id 'marker)))
+        (unless (markerp location)
+          (error "Org node not found for id: %s" id))
+        location))
+     ((and file olp)
+      (let* ((buf (find-file-noselect file))
+             (path-list (append olp nil)))
+        (condition-case err
+            (with-current-buffer buf
+              (org-find-olp (cons file path-list)))
+          (error
+           (error "Outline path not found in %s: %S" file path-list)))))
+     (file
+      (let ((buf (find-file-noselect file)))
+        (with-current-buffer buf
+          (save-excursion
+            (goto-char (point-min))
+            (point-marker)))))
+     (t
+      (error "resolve-node requires `id' or `file' (+ optional `outline_path')")))))
+
 (provide 'mcp-server-emacs-tools-org-common)
 
 ;;; mcp-server-emacs-tools-org-common.el ends here
