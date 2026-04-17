@@ -35,17 +35,27 @@
                               (clocked_id . ,id)
                               (clocked_title . ,title))))))
           ("out"
-           (let ((info (and (boundp 'org-clock-marker)
-                            (markerp org-clock-marker)
-                            (marker-position org-clock-marker))))
-             (when info (org-clock-out))
+           (let* ((active (and (boundp 'org-clock-marker)
+                               (markerp org-clock-marker)
+                               (marker-position org-clock-marker)))
+                  (buf (and active (marker-buffer org-clock-marker))))
+             (when active
+               (org-clock-out)
+               (when (and mcp-server-emacs-tools-org-auto-save
+                          (buffer-live-p buf))
+                 (with-current-buffer buf (save-buffer))))
              (json-encode `((action . "out")))))
           ("cancel"
-           (when (and (boundp 'org-clock-marker)
-                      (markerp org-clock-marker)
-                      (marker-position org-clock-marker))
-             (org-clock-cancel))
-           (json-encode `((action . "cancel"))))
+           (let* ((active (and (boundp 'org-clock-marker)
+                               (markerp org-clock-marker)
+                               (marker-position org-clock-marker)))
+                  (buf (and active (marker-buffer org-clock-marker))))
+             (when active
+               (org-clock-cancel)
+               (when (and mcp-server-emacs-tools-org-auto-save
+                          (buffer-live-p buf))
+                 (with-current-buffer buf (save-buffer))))
+             (json-encode `((action . "cancel")))))
           (_ (error "Unknown action: %s" action))))
     (error (json-encode `((error . ,(error-message-string err)))))))
 

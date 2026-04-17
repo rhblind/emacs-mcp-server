@@ -28,5 +28,36 @@
   "Tool is registered."
   (should (mcp-server-tools-exists-p "org-clock")))
 
+(ert-deftest mcp-test-org-clock-cancel ()
+  "clock cancel discards the running clock."
+  (mcp-test-with-org-fixture "sample-agenda.org" path
+    ;; Start a clock.
+    (mcp-server-emacs-tools-org-clock--handler
+     '((action . "in") (id . "agenda-task-0001")))
+    ;; Cancel it.
+    (let* ((json (mcp-server-emacs-tools-org-clock--handler
+                  '((action . "cancel"))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should (equal (alist-get 'action result) "cancel")))
+    ;; No CLOCK line should have been written on cancel
+    ;; (cancel discards unlike out which records duration).
+    (with-temp-buffer
+      (insert-file-contents path)
+      (should-not (string-match-p "CLOCK: \\[20" (buffer-string))))))
+
+(ert-deftest mcp-test-org-clock-unknown-action ()
+  "clock with unknown action returns an error."
+  (let* ((json (mcp-server-emacs-tools-org-clock--handler
+                '((action . "freeze"))))
+         (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+    (should (alist-get 'error result))))
+
+(ert-deftest mcp-test-org-clock-in-requires-reference ()
+  "clock in without id/file signals error."
+  (let* ((json (mcp-server-emacs-tools-org-clock--handler
+                '((action . "in"))))
+         (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+    (should (alist-get 'error result))))
+
 (provide 'test-mcp-org-clock)
 ;;; test-mcp-org-clock.el ends here
