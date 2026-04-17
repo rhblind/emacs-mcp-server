@@ -1,22 +1,22 @@
 * TODO Write spec
+SCHEDULED: <2026-04-18 Sat>
 :PROPERTIES:
 :ID:       agenda-task-0001
 :END:
-SCHEDULED: <2026-04-18 Sat>
 :LOGBOOK:
 :END:
 
 * NEXT Review PR                                                        :work:
+DEADLINE: <2026-04-20 Mon>
 :PROPERTIES:
 :ID:       agenda-task-0002
 :END:
-DEADLINE: <2026-04-20 Mon>
 
 * DONE Release v0.5.0                                          :work:release:
+CLOSED: [2026-04-15 Wed]
 :PROPERTIES:
 :ID:       agenda-task-0003
 :END:
-CLOSED: [2026-04-15 Wed]
 
 * TODO Buy groceries                                                    :home:
 :PROPERTIES:
