@@ -38,11 +38,37 @@
   (should (boundp 'mcp-server-default-transport)))
 
 (ert-deftest mcp-test-server-capabilities ()
-  "Test that server capabilities are defined."
+  "Server must only advertise capabilities it actually implements.
+Issue #14: advertising resources/prompts/listChanged we don't emit
+causes clients to wait forever or otherwise misbehave."
   (should (boundp 'mcp-server-capabilities))
-  (should (alist-get 'tools mcp-server-capabilities))
-  (should (alist-get 'resources mcp-server-capabilities))
-  (should (alist-get 'prompts mcp-server-capabilities)))
+  ;; Tools is implemented, must be advertised
+  (should (assq 'tools mcp-server-capabilities))
+  ;; Resources not implemented (tracked in #12) - must not be advertised
+  (should-not (assq 'resources mcp-server-capabilities))
+  ;; Prompts not implemented - must not be advertised
+  (should-not (assq 'prompts mcp-server-capabilities))
+  ;; tools.listChanged notification is never emitted - must not be claimed
+  (let ((tools-cap (alist-get 'tools mcp-server-capabilities)))
+    (should (or (null tools-cap)
+                (and (hash-table-p tools-cap)
+                     (zerop (hash-table-count tools-cap)))))))
+
+(ert-deftest mcp-test-server-capabilities-serialize-empty-tools-object ()
+  "Capabilities must serialize as {\"tools\":{}} for MCP spec compliance.
+Empty object indicates tools exist without optional sub-capabilities."
+  (let* ((converted (mcp-server-transport--alist-to-json mcp-server-capabilities))
+         (json-str (json-serialize converted)))
+    (should (string= json-str "{\"tools\":{}}"))))
+
+(ert-deftest mcp-test-no-unimplemented-method-handlers ()
+  "Handlers for unsupported methods must not exist.
+Issue #14: resources and prompts handlers were stubs that lied about
+support; removing them lets the method router return -32601 (method
+not found) which is the correct response."
+  (should-not (fboundp 'mcp-server--handle-resources-list))
+  (should-not (fboundp 'mcp-server--handle-resources-read))
+  (should-not (fboundp 'mcp-server--handle-prompts-list)))
 
 ;;; Server Function Tests
 

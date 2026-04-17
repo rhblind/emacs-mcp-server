@@ -133,13 +133,11 @@
 ;;; Configuration Pattern Tests
 
 (ert-deftest mcp-test-server-capabilities-structure ()
-  "Test server capabilities structure."
-  (let ((capabilities '((tools . ((listChanged . t)))
-                        (resources . ((subscribe . t) (listChanged . t)))
-                        (prompts . ((listChanged . t))))))
-    (should (alist-get 'tools capabilities))
-    (should (alist-get 'resources capabilities))
-    (should (alist-get 'prompts capabilities))))
+  "Minimum viable capabilities advertise tools only (issue #14)."
+  (let ((capabilities `((tools . ,(make-hash-table :test 'equal)))))
+    (should (assq 'tools capabilities))
+    (should-not (assq 'resources capabilities))
+    (should-not (assq 'prompts capabilities))))
 
 (ert-deftest mcp-test-client-info-structure ()
   "Test client info structure."
