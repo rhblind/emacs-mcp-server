@@ -62,5 +62,42 @@
   (should-error
    (mcp-server-emacs-tools-org-common--resolve-node '())))
 
+(ert-deftest mcp-test-org-common-node-to-alist-basic ()
+  "node-to-alist returns expected keys and values."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    (let* ((marker (mcp-server-emacs-tools-org-common--resolve-node
+                    '((id . "alpha-design-0001"))))
+           (alist (mcp-server-emacs-tools-org-common--node-to-alist
+                   marker :include-body t)))
+      (should (equal (alist-get 'id alist) "alpha-design-0001"))
+      (should (equal (alist-get 'title alist) "Design"))
+      (should (equal (alist-get 'level alist) 2))
+      (should (stringp (alist-get 'file alist)))
+      (should (vectorp (alist-get 'outline_path alist)))
+      (should (equal (append (alist-get 'outline_path alist) nil)
+                     '("Project Alpha" "Design")))
+      (should (string-match-p "Design notes for alpha"
+                              (alist-get 'body alist))))))
+
+(ert-deftest mcp-test-org-common-node-to-alist-omit-body ()
+  "node-to-alist omits body when :include-body is nil."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    (let* ((marker (mcp-server-emacs-tools-org-common--resolve-node
+                    '((id . "alpha-design-0001"))))
+           (alist (mcp-server-emacs-tools-org-common--node-to-alist
+                   marker :include-body nil)))
+      (should-not (alist-get 'body alist)))))
+
+(ert-deftest mcp-test-org-common-node-to-alist-truncates-large-body ()
+  "node-to-alist truncates body larger than max-body-bytes."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    (let ((mcp-server-emacs-tools-org-max-body-bytes 10)
+          (marker (mcp-server-emacs-tools-org-common--resolve-node
+                   '((id . "alpha-design-0001")))))
+      (let ((alist (mcp-server-emacs-tools-org-common--node-to-alist
+                    marker :include-body t)))
+        (should (<= (length (alist-get 'body alist)) 10))
+        (should (eq (alist-get 'truncated alist) t))))))
+
 (provide 'test-mcp-org-common)
 ;;; test-mcp-org-common.el ends here

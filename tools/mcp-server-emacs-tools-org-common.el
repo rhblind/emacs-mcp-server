@@ -10,6 +10,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'org)
 (require 'org-id)
 (require 'org-element)
@@ -73,6 +74,68 @@ Signals an error if the node cannot be located."
             (point-marker)))))
      (t
       (error "resolve-node requires `id' or `file' (+ optional `outline_path')")))))
+
+(defun mcp-server-emacs-tools-org-common--compute-outline-path ()
+  "Return the outline path at point as a list of strings."
+  (org-with-wide-buffer
+   (let ((path '()))
+     (save-excursion
+       (while (org-up-heading-safe)
+         (push (org-get-heading t t t t) path)))
+     (when (org-at-heading-p)
+       (setq path (append path (list (org-get-heading t t t t)))))
+     path)))
+
+(cl-defun mcp-server-emacs-tools-org-common--node-to-alist
+    (marker &key (include-body t))
+  "Serialize node at MARKER to an alist.
+When INCLUDE-BODY is non-nil, include the node body, possibly truncated
+to `mcp-server-emacs-tools-org-max-body-bytes'."
+  (with-current-buffer (marker-buffer marker)
+    (org-with-wide-buffer
+     (goto-char marker)
+     (let* ((id (org-entry-get nil "ID"))
+            (title (when (org-at-heading-p) (org-get-heading t t t t)))
+            (level (when (org-at-heading-p) (org-outline-level)))
+            (olp (mcp-server-emacs-tools-org-common--compute-outline-path))
+            (tags (when (org-at-heading-p) (org-get-tags nil t)))
+            (todo-state (when (org-at-heading-p) (org-get-todo-state)))
+            (priority (when (and (org-at-heading-p)
+                                 (looking-at org-heading-regexp))
+                        (let ((p (match-string 3)))
+                          (when p (substring p 2 3)))))
+            (scheduled (org-entry-get nil "SCHEDULED"))
+            (deadline (org-entry-get nil "DEADLINE"))
+            (properties (org-entry-properties nil 'standard))
+            (file (buffer-file-name))
+            (body nil)
+            (truncated nil))
+       (when include-body
+         (let ((element (and (org-at-heading-p) (org-element-at-point))))
+           (when element
+             (let* ((begin (org-element-property :contents-begin element))
+                    (end (org-element-property :contents-end element))
+                    (raw (if (and begin end) (buffer-substring-no-properties begin end) "")))
+               (setq body (if (> (length raw) mcp-server-emacs-tools-org-max-body-bytes)
+                              (progn (setq truncated t)
+                                     (substring raw 0 mcp-server-emacs-tools-org-max-body-bytes))
+                            raw))))))
+       (let ((result `((id . ,id)
+                       (title . ,title)
+                       (file . ,file)
+                       (outline_path . ,(vconcat olp))
+                       (level . ,level)
+                       (todo_state . ,todo-state)
+                       (tags . ,(vconcat tags))
+                       (priority . ,priority)
+                       (scheduled . ,scheduled)
+                       (deadline . ,deadline)
+                       (properties . ,properties))))
+         (when include-body
+           (setq result (append result `((body . ,body)))))
+         (when truncated
+           (setq result (append result '((truncated . t)))))
+         result)))))
 
 (provide 'mcp-server-emacs-tools-org-common)
 
