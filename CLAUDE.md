@@ -183,9 +183,13 @@ This project requires **Emacs 27.1+** for native JSON support (`json-serialize`,
 
 ### Version Bumping
 
-When releasing a new version, update **both** locations in `mcp-server.el`:
-1. Header comment: `;; Version: X.Y.Z`
-2. Runtime constant: `(defconst mcp-server-version "X.Y.Z" ...)`
+Version bumping is automated via [release-please](https://github.com/googleapis/release-please). Do not edit version strings manually. Write conventional commits (`feat:`, `fix:`, `feat!:` / `BREAKING CHANGE:` for major bumps) on `main`; release-please opens a release PR that updates both version locations in `mcp-server.el`, updates `CHANGELOG.md`, and (on merge) creates a `vX.Y.Z` git tag and GitHub Release.
+
+The two version locations that release-please manages (marked with `x-release-please-version` comments):
+1. Header comment: `;; Version: X.Y.Z ;; x-release-please-version`
+2. Runtime constant: `(defconst mcp-server-version "X.Y.Z" ; x-release-please-version`
+
+Config lives in `.github/release-please-config.json`, `.github/.release-please-manifest.json`, and `.github/workflows/release-please.yml`.
 
 ## Key Architecture Components
 

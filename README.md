@@ -66,15 +66,15 @@ Alternatively, use package managers:
 **Connect Claude CLI**
 
 ```bash
-claude mcp add emacs ~/path-to/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the python script
-claude mcp add emacs ~/path-to/mcp-wrapper.sh ~/.config/emacs/.local/cache/emacs-mcp-server.sock           # Uses the bash script
-claude mcp add emacs-direct -- socat - UNIX-CONNECT:$HOME/.config/emacs/.local/cache/emacs-mcp-server.sock # Uses socat directly
+claude mcp add emacs -- socat - UNIX-CONNECT:$HOME/.config/emacs/.local/cache/emacs-mcp-server.sock  # Uses socat directly
+claude mcp add emacs ~/path-to/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock     # Uses the python wrapper script
+claude mcp add emacs ~/path-to/mcp-wrapper.sh ~/.config/emacs/.local/cache/emacs-mcp-server.sock     # Uses the bash wrapper script
 
-# Real world, add to user scope so it's always available
-claude mcp add emacs --scope user ~/.config/emacs/.local/straight/build-30.1/mcp-server/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock
+# Optionally, add to user scope so it's always available
+claude mcp add emacs --scope user -- socat - UNIX-CONNECT:$HOME/.config/emacs/.local/cache/emacs-mcp-server.sock
 ```
 
-**That's it!** Claude can now interact with your Emacs session.
+Claude can now interact with your Emacs session.
 
 ## What LLMs Can Do
 

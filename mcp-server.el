@@ -5,7 +5,7 @@
 ;; Author: Claude Code + Rolf Håvard Blindheim<rhblind@gmail.com>
 ;; URL: https://github.com/rhblind/emacs-mcp-server
 ;; Keywords: mcp, protocol, integration, tools
-;; Version: 0.6.0
+;; Version: 0.6.0 ;; x-release-please-version
 ;; Package-Requires: ((emacs "27.1"))
 
 ;; This file is NOT part of GNU Emacs.
@@ -61,7 +61,7 @@
 
 ;;; Constants
 
-(defconst mcp-server-version "0.6.0"
+(defconst mcp-server-version "0.6.0" ; x-release-please-version
   "Version of the Emacs MCP server.")
 
 (defconst mcp-server-protocol-version "2024-11-05"
@@ -141,10 +141,14 @@ Defaults to `user-emacs-directory'. Users can customize this with:
   :group 'mcp-server)
 
 (defvar mcp-server-capabilities
-  '((tools . ((listChanged . t)))
-    (resources . ((subscribe . t) (listChanged . t)))
-    (prompts . ((listChanged . t))))
-  "Capabilities supported by this MCP server.")
+  `((tools . ,(make-hash-table :test 'equal)))
+  "Capabilities supported by this MCP server.
+Only advertise capabilities that are actually implemented.  Empty
+hash-table for `tools' serializes to `{}', indicating tools exist
+without optional sub-capabilities.  Add `listChanged' back when a
+notification is wired up on tool register/unregister/filter changes.
+Add `resources' and `prompts' entries only when the corresponding
+handlers and notifications are implemented.")
 
 ;;; Logging
 
@@ -293,17 +297,6 @@ Uses `catch'/`throw' for early exit after successful response send."
               (mcp-server--debug "tools/call handler returned: %S" result)
               result))
 
-           ;; Resources (future implementation)
-           ((string= method "resources/list")
-            (mcp-server--handle-resources-list id params client-id))
-
-           ((string= method "resources/read")
-            (mcp-server--handle-resources-read id params client-id))
-
-           ;; Prompts (future implementation)
-           ((string= method "prompts/list")
-            (mcp-server--handle-prompts-list id params client-id))
-
            ;; Notifications
            ((string= method "notifications/initialized")
             (mcp-server--handle-initialized))
@@ -398,31 +391,6 @@ Uses `catch'/`throw' for early exit after successful response send."
       `((content . (((type . "text")
                      (text . "Tool execution failed"))))
         (isError . t))))))
-
-(defun mcp-server--handle-resources-list (id params client-id)
-  "Handle resources/list request with ID and PARAMS from CLIENT-ID.
-Returns empty list as resources feature is planned for future implementation."
-  (mcp-server--debug "Resources list request from %s: %s" client-id params)
-
-  (mcp-server--send-response
-   client-id id
-   '((resources . []))))
-
-(defun mcp-server--handle-resources-read (id params client-id)
-  "Handle resources/read request with ID and PARAMS from CLIENT-ID.
-Returns error as resources feature is planned for future implementation."
-  (mcp-server--debug "Resources read request from %s: %s" client-id params)
-
-  (mcp-server--send-error client-id id -32002 "Resource not found" params))
-
-(defun mcp-server--handle-prompts-list (id params client-id)
-  "Handle prompts/list request with ID and PARAMS from CLIENT-ID.
-Returns empty list as prompts feature is planned for future implementation."
-  (mcp-server--debug "Prompts list request from %s: %s" client-id params)
-
-  (mcp-server--send-response
-   client-id id
-   '((prompts . []))))
 
 (defun mcp-server--send-error (client-id id code message &optional data)
   "Send error response to CLIENT-ID with ID, CODE, MESSAGE and optional DATA."
