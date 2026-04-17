@@ -47,6 +47,8 @@
       (let* ((view (or (alist-get 'view args) "day"))
              (files (or (alist-get 'files args) (org-agenda-files)))
              (files-list (append files nil))
+             (_ (when (alist-get 'files args)
+                  (mapc #'mcp-server-emacs-tools-org-common--validate-path files-list)))
              (match (alist-get 'match args))
              (effective-match
               (pcase view

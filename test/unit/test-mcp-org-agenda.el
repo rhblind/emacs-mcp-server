@@ -39,5 +39,16 @@
   "Tool is registered."
   (should (mcp-server-tools-exists-p "org-agenda")))
 
+(ert-deftest mcp-test-org-agenda-rejects-files-outside-root ()
+  "org-agenda rejects `files' outside allowed roots."
+  (let* ((outside (make-temp-file "mcp-outside-" nil ".org"))
+         (mcp-server-emacs-tools-org-allowed-roots (list "/nonexistent-root-xyz")))
+    (unwind-protect
+        (let* ((json (mcp-server-emacs-tools-org-agenda--handler
+                      `((view . "todo") (files . [,outside]))))
+               (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+          (should (alist-get 'error result)))
+      (when (file-exists-p outside) (delete-file outside)))))
+
 (provide 'test-mcp-org-agenda)
 ;;; test-mcp-org-agenda.el ends here
