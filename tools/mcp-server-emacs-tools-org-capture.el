@@ -12,13 +12,39 @@
 (require 'org-capture)
 (require 'org-id)
 (require 'json)
+(require 'seq)
+
+(defun mcp-server-emacs-tools-org-capture--substitute-cursor (template content)
+  "Return TEMPLATE with the first unescaped `%?' replaced by CONTENT.
+MCP calls are non-interactive, so the `%?' cursor marker is pre-filled
+with CONTENT before org-capture processes the template.  When TEMPLATE
+contains no `%?', TEMPLATE is returned unchanged."
+  (if (and (stringp template) (stringp content)
+           (string-match "%\\?" template))
+      (replace-match content t t template)
+    template))
 
 (defun mcp-server-emacs-tools-org-capture--template-mode (args)
   "Run org-capture with a template from ARGS.
 Always finalizes synchronously; `immediate_finish' arg is accepted but ignored
-because MCP calls are non-interactive."
+because MCP calls are non-interactive.  The `content' arg is placed at the
+template's `%?' cursor marker (when present) and also made available as `%i'."
   (let* ((key (alist-get 'template_key args))
          (content (alist-get 'content args))
+         (entry (and key (assoc key org-capture-templates)))
+         (modified-entry
+          (and entry content (stringp (nth 4 entry))
+               (append (seq-take entry 4)
+                       (list (mcp-server-emacs-tools-org-capture--substitute-cursor
+                              (nth 4 entry) content))
+                       (nthcdr 5 entry))))
+         (modified-templates
+          (if modified-entry
+              (cons modified-entry
+                    (seq-remove (lambda (e) (equal (car-safe e) key))
+                                org-capture-templates))
+            org-capture-templates))
+         (org-capture-templates modified-templates)
          (org-capture-initial (or content ""))
          (org-capture-templates-contexts nil))
     (save-window-excursion
