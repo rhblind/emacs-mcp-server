@@ -130,6 +130,43 @@ Retrieves errors and warnings from flycheck or flymake (auto-detected per buffer
 }
 ```
 
+### Org-mode Tools
+
+The server ships 10 org-mode tools plus 3 org-roam-specific tools (the roam
+tools register only when `org-roam` is installed).
+
+**Read tools**
+
+- `org-agenda` - structured agenda and TODO views.
+- `org-search` - heading search using org's match syntax (`"+work-home/!TODO"` etc.).
+- `org-get-node` - fetch a heading or file body.
+- `org-list-templates` - enumerate the user's capture templates so the LLM
+  can pick the right `template_key`.
+- `org-list-tags` - enumerate existing tags with usage counts so the LLM can
+  prefer reusing an established tag over creating a near-duplicate.
+
+**Write tools**
+
+- `org-capture` - create a new entry; template mode respects the user's
+  `org-capture-templates` verbatim.
+- `org-update-node` - update title, TODO state, priority, tags, properties,
+  schedule, deadline, or body on an existing heading.
+- `org-refile` - move a heading under another.
+- `org-archive` - archive a heading to its configured archive target.
+- `org-clock` - clock in, out, or cancel.
+
+**Org-roam tools** (register only if `org-roam` is installed)
+
+- `org-roam-search` - find nodes by title, alias, tag, or ref.
+- `org-roam-get-node` - fetch a node with its backlinks.
+- `org-roam-capture` - create a new node, respecting
+  `org-roam-capture-templates`.
+
+All write tools respect `mcp-server-emacs-tools-org-allowed-roots`, which
+defaults to directories containing `org-directory` and `org-agenda-files`.
+Writes auto-save the target buffer by default; set
+`mcp-server-emacs-tools-org-auto-save` to `nil` to manage saves manually.
+
 ## Configuration
 
 **Socket naming strategies:** Choose how sockets are named based on your setup:
