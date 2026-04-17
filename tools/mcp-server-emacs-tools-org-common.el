@@ -172,6 +172,45 @@ Returns PATH (expanded) on success; signals an error on failure."
       (error "Path %s is outside allowed roots: %S" abs roots))
     abs))
 
+(defmacro mcp-server-emacs-tools-org-common--with-node (marker &rest body)
+  "Execute BODY at MARKER's buffer and point.
+Wraps in `save-excursion'.  When `mcp-server-emacs-tools-org-auto-save'
+is non-nil and the buffer is visiting a file, save the buffer after BODY."
+  (declare (indent 1))
+  `(let ((marker ,marker))
+     (with-current-buffer (marker-buffer marker)
+       (save-excursion
+         (goto-char marker)
+         (prog1 (progn ,@body)
+           (when (and mcp-server-emacs-tools-org-auto-save
+                      (buffer-file-name)
+                      (buffer-modified-p))
+             (save-buffer)))))))
+
+(defun mcp-server-emacs-tools-org-common--promote-to-id (marker)
+  "Ensure the node at MARKER has an ID; return it.
+When `mcp-server-emacs-tools-org-auto-id' is nil, returns the existing
+ID or nil without creating one."
+  (with-current-buffer (marker-buffer marker)
+    (save-excursion
+      (goto-char marker)
+      (if mcp-server-emacs-tools-org-auto-id
+          (org-id-get-create)
+        (org-entry-get nil "ID")))))
+
+(defconst mcp-server-emacs-tools-org-common--roam-hint
+  " If org-roam is installed, consider `org-roam-search' for knowledge-base queries."
+  "Appended to org-search-style descriptions when org-roam is present.")
+
+(defun mcp-server-emacs-tools-org-common--augment-description (base hint-kind)
+  "Append a roam hint to BASE description when appropriate.
+HINT-KIND is currently only `roam-hint'.  If org-roam is not loaded,
+BASE is returned unchanged."
+  (cond
+   ((and (eq hint-kind 'roam-hint) (featurep 'org-roam))
+    (concat base mcp-server-emacs-tools-org-common--roam-hint))
+   (t base)))
+
 (provide 'mcp-server-emacs-tools-org-common)
 
 ;;; mcp-server-emacs-tools-org-common.el ends here
