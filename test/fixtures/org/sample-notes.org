@@ -1,0 +1,26 @@
+* Project Alpha
+:PROPERTIES:
+:ID:       alpha-root-0001
+:END:
+
+Top-level project node body.
+
+** Design
+:PROPERTIES:
+:ID:       alpha-design-0001
+:END:
+
+Design notes for alpha.
+
+*** Architecture
+Architecture details here.
+
+** Implementation
+No ID here on purpose.
+
+* Project Beta
+:PROPERTIES:
+:ID:       beta-root-0001
+:END:
+
+Beta notes.
