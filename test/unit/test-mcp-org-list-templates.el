@@ -26,9 +26,14 @@
         (should (equal (alist-get 'description first) "Todo"))))))
 
 (ert-deftest mcp-test-org-list-templates-roam-without-roam ()
-  "list-templates roam type returns error when roam is absent."
-  (cl-letf (((symbol-function 'featurep)
-             (lambda (feat &rest _) (not (eq feat 'org-roam)))))
+  "list-templates roam type returns error when roam is absent.
+The handler uses `(require 'org-roam nil t)`; mock that to return nil
+for `org-roam' regardless of whether the package is installed."
+  (cl-letf* ((orig-require (symbol-function 'require))
+             ((symbol-function 'require)
+              (lambda (feat &optional filename noerror)
+                (if (eq feat 'org-roam) nil
+                  (funcall orig-require feat filename noerror)))))
     (let* ((json (mcp-server-emacs-tools-org-list-templates--handler
                   '((type . "roam-capture"))))
            (result (let ((json-object-type 'alist)) (json-read-from-string json))))

@@ -12,7 +12,10 @@
 (require 'json)
 
 (defun mcp-server-emacs-tools-org-list-templates--template-to-alist (tmpl)
-  "Convert TMPL (an entry from org-capture-templates) to an alist."
+  "Convert TMPL (an entry from org-capture-templates) to an alist.
+For `file+olp' and `file+olp+datetree' targets, the full outline path
+is returned as a vector under `target_outline_path'; `target_heading'
+is kept as the first path component for backward compatibility."
   (let* ((key (nth 0 tmpl))
          (description (nth 1 tmpl))
          (kind (nth 2 tmpl))
@@ -21,17 +24,20 @@
          (target-file (when (and (listp target) (>= (length target) 2))
                         (let ((f (nth 1 target)))
                           (if (stringp f) f (format "%S" f)))))
-         (target-heading (when (and (listp target)
-                                    (memq target-type '(file+headline file+olp file+olp+datetree))
-                                    (>= (length target) 3))
-                           (let ((h (nth 2 target)))
-                             (if (stringp h) h (format "%S" h))))))
+         (target-olp
+          (pcase target-type
+            ((or 'file+headline 'file+olp 'file+olp+datetree)
+             (let ((raw (nthcdr 2 target)))
+               (mapcar (lambda (x) (if (stringp x) x (format "%S" x))) raw)))
+            (_ nil)))
+         (target-heading (car target-olp)))
     `((key . ,key)
       (description . ,description)
       (kind . ,(symbol-name (or kind 'entry)))
       (target_type . ,(when target-type (symbol-name target-type)))
       (target_file . ,target-file)
-      (target_heading . ,target-heading))))
+      (target_heading . ,target-heading)
+      (target_outline_path . ,(vconcat target-olp)))))
 
 (defun mcp-server-emacs-tools-org-list-templates--handler (args)
   "Handle org-list-templates tool call with ARGS."
@@ -43,7 +49,7 @@
                                     (or org-capture-templates '()))))
              (json-encode `((templates . ,(vconcat templates))))))
           ("roam-capture"
-           (if (featurep 'org-roam)
+           (if (require 'org-roam nil t)
                (let ((templates (mapcar #'mcp-server-emacs-tools-org-list-templates--template-to-alist
                                         (or (and (boundp 'org-roam-capture-templates)
                                                  org-roam-capture-templates)

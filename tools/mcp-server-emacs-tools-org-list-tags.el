@@ -14,7 +14,9 @@
 (require 'seq)
 
 (defun mcp-server-emacs-tools-org-list-tags--configured-tags ()
-  "Return a list of configured tag names from variables and #+TAGS directives."
+  "Return configured tag names from `org-tag-alist' and `org-tag-persistent-alist'.
+In-buffer `#+TAGS:' directives are not included here; they show up
+through the used-tags path when the buffer they appear in is scanned."
   (let ((seen (make-hash-table :test 'equal)))
     (dolist (entry (append (and (boundp 'org-tag-alist) org-tag-alist)
                            (and (boundp 'org-tag-persistent-alist)
@@ -24,20 +26,22 @@
     (hash-table-keys seen)))
 
 (defun mcp-server-emacs-tools-org-list-tags--scope-files (scope files directory)
-  "Resolve SCOPE to a list of files (mirrors org-search)."
-  (pcase scope
-    ("agenda" (org-agenda-files))
-    ("file"
-     (unless files (error "scope=file requires `files'"))
-     (let ((as-list (append files nil)))
-       (mapc #'mcp-server-emacs-tools-org-common--validate-path as-list)
-       as-list))
-    ("directory"
-     (unless directory (error "scope=directory requires `directory'"))
-     (mcp-server-emacs-tools-org-common--validate-path directory)
-     (directory-files-recursively directory "\\.org$"))
-    ("roam" nil)
-    (_ (error "Unknown scope: %s" scope))))
+  "Resolve SCOPE to a list of files, validating each against allowed roots.
+Mirrors `mcp-server-emacs-tools-org-search--scope-files'."
+  (let ((resolved
+         (pcase scope
+           ("agenda" (org-agenda-files))
+           ("file"
+            (unless files (error "scope=file requires `files'"))
+            (append files nil))
+           ("directory"
+            (unless directory (error "scope=directory requires `directory'"))
+            (mcp-server-emacs-tools-org-common--validate-path directory)
+            (directory-files-recursively directory "\\.org$"))
+           ("roam" nil)
+           (_ (error "Unknown scope: %s" scope)))))
+    (mapc #'mcp-server-emacs-tools-org-common--validate-path resolved)
+    resolved))
 
 (defun mcp-server-emacs-tools-org-list-tags--used-tags-in-files (files)
   "Return a hash table of {tag -> count} from FILES."
@@ -71,7 +75,8 @@ across org-roam versions."
       (let* ((scope (or (alist-get 'scope args) "agenda"))
              (files (alist-get 'files args))
              (directory (alist-get 'directory args))
-             (include-configured (alist-get 'include_configured args t))
+             (include-configured (mcp-server-emacs-tools-org-common--bool-arg
+                                  args 'include_configured t))
              (limit (alist-get 'limit args))
              (counts
               (pcase scope

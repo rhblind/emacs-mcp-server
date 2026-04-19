@@ -136,7 +136,7 @@
       (should (string-match-p "SCHEDULED: <2026-05-01" (buffer-string))))))
 
 (ert-deftest mcp-test-org-update-node-clear-scheduled ()
-  "`scheduled' set to null removes the SCHEDULED line."
+  "`scheduled' set to null (elisp nil) removes the SCHEDULED line."
   (mcp-test-with-org-fixture "sample-agenda.org" path
     ;; agenda-task-0001 starts with SCHEDULED set.
     (mcp-server-emacs-tools-org-update-node--handler
@@ -145,6 +145,28 @@
     (with-temp-buffer
       (insert-file-contents path)
       (should-not (string-match-p "SCHEDULED: <2026-04-18" (buffer-string))))))
+
+(ert-deftest mcp-test-org-update-node-clear-scheduled-via-json-null ()
+  "`scheduled' set to JSON null (:null after json-parse-string) clears it.
+Regression test: real MCP calls arrive with `:null', not elisp nil."
+  (mcp-test-with-org-fixture "sample-agenda.org" path
+    (mcp-server-emacs-tools-org-update-node--handler
+     '((id . "agenda-task-0001")
+       (scheduled . :null)))
+    (with-temp-buffer
+      (insert-file-contents path)
+      (should-not (string-match-p "SCHEDULED: <2026-04-18" (buffer-string))))))
+
+(ert-deftest mcp-test-org-update-node-clear-deadline-via-json-null ()
+  "`deadline' set to JSON null (:null) clears it."
+  (mcp-test-with-org-fixture "sample-agenda.org" path
+    ;; agenda-task-0002 starts with DEADLINE set.
+    (mcp-server-emacs-tools-org-update-node--handler
+     '((id . "agenda-task-0002")
+       (deadline . :null)))
+    (with-temp-buffer
+      (insert-file-contents path)
+      (should-not (string-match-p "DEADLINE: <2026-04-20" (buffer-string))))))
 
 (ert-deftest mcp-test-org-update-node-set-deadline ()
   "`deadline' adds a DEADLINE line."

@@ -36,6 +36,7 @@
                  title)))
       (when rows
         (let* ((row (car rows)) (id (nth 0 row)) (file (nth 1 row)))
+          (mcp-server-emacs-tools-org-common--validate-path file)
           (when (or tags aliases refs)
             (with-current-buffer (find-file-noselect file)
               (save-excursion
@@ -66,6 +67,7 @@
                  title)))
       (when rows
         (let* ((row (car rows)) (id (nth 0 row)) (file (nth 1 row)))
+          (mcp-server-emacs-tools-org-common--validate-path file)
           `((id . ,id) (file . ,file) (title . ,title)))))))
 
 (defun mcp-server-emacs-tools-org-roam-capture--handler (args)
@@ -87,15 +89,13 @@
                     (properties . ((template_key . ((type . "string")))
                                    (title . ((type . "string")))
                                    (content . ((type . "string")))
-                                   (file . ((type . "string")))
                                    (body . ((type . "string")))
                                    (tags . ((type . "array")
                                             (items . ((type . "string")))))
                                    (aliases . ((type . "array")
                                                (items . ((type . "string")))))
                                    (refs . ((type . "array")
-                                            (items . ((type . "string")))))
-                                   (properties . ((type . "object")))))
+                                            (items . ((type . "string")))))))
                     (required . ["title"]))
     :function #'mcp-server-emacs-tools-org-roam-capture--handler
     :annotations '((readOnlyHint . :false)

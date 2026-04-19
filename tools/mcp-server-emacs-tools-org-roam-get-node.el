@@ -9,6 +9,7 @@
 (require 'mcp-server-tools)
 (require 'mcp-server-emacs-tools-org-common)
 (require 'json)
+(require 'seq)
 
 (declare-function org-roam-node-from-id "org-roam-node" (id))
 (declare-function org-roam-node-title "org-roam-node" (node))
@@ -25,9 +26,12 @@
   "Handle org-roam-get-node tool call with ARGS."
   (condition-case err
       (let* ((id (or (alist-get 'id args) (error "`id' is required")))
-             (include-body (alist-get 'include_body args t))
-             (include-backlinks (alist-get 'include_backlinks args t))
-             (include-forward (alist-get 'include_forward_links args nil))
+             (include-body (mcp-server-emacs-tools-org-common--bool-arg
+                            args 'include_body t))
+             (include-backlinks (mcp-server-emacs-tools-org-common--bool-arg
+                                 args 'include_backlinks t))
+             (include-forward (mcp-server-emacs-tools-org-common--bool-arg
+                               args 'include_forward_links nil))
              (backlink-limit (or (alist-get 'backlink_limit args) 50))
              (node (org-roam-node-from-id id))
              (_ (unless node (error "Roam node not found: %s" id)))

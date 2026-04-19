@@ -13,8 +13,10 @@
 (defun mcp-server-emacs-tools-org-get-node--handler (args)
   "Handle org-get-node tool call with ARGS."
   (condition-case err
-      (let* ((include-body (alist-get 'include_body args t))
-             (include-children (alist-get 'include_children args nil))
+      (let* ((include-body (mcp-server-emacs-tools-org-common--bool-arg
+                            args 'include_body t))
+             (include-children (mcp-server-emacs-tools-org-common--bool-arg
+                                args 'include_children nil))
              (file (alist-get 'file args))
              (marker (progn
                        (when file

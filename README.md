@@ -94,8 +94,23 @@ Once connected, LLMs can perform powerful operations in your Emacs environment:
 
 ## Available Tools
 
-- `eval-elisp` - Execute arbitrary elisp expressions safely and return the result
-- `get-diagnostics` - Get flycheck/flymake diagnostics from project buffers
+### eval-elisp
+
+Executes an arbitrary Elisp expression in the running Emacs process and returns the printed result. The expression passes through the security layer, which blocks dangerous functions and credential-bearing files (see [Security](#security)).
+
+**Parameters:**
+| Parameter    | Type   | Required | Description                       |
+|--------------|--------|----------|-----------------------------------|
+| `expression` | string | Yes      | The Elisp expression to evaluate. |
+
+**Example response:**
+```json
+{
+  "content": [
+    {"type": "text", "text": "6"}
+  ]
+}
+```
 
 ### get-diagnostics
 

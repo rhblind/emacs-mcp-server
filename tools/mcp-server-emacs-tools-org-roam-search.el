@@ -9,6 +9,7 @@
 
 (require 'mcp-server-tools)
 (require 'mcp-server-emacs-tools-org-common)
+(require 'cl-lib)
 (require 'json)
 
 (declare-function org-roam-db-query "org-roam-db" (sql &rest args))
@@ -31,43 +32,45 @@
                      :from nodes]))
              (results '())
              (truncated nil))
-        (dolist (row rows)
-          (let* ((id (nth 0 row))
-                 (title (nth 1 row))
-                 (file (nth 2 row))
-                 (level (nth 3 row))
-                 (node-tags (mapcar #'car (org-roam-db-query
-                                           [:select [tag] :from tags :where (= node-id $s1)]
-                                           id)))
-                 (node-aliases (mapcar #'car (org-roam-db-query
-                                              [:select [alias] :from aliases :where (= node-id $s1)]
-                                              id)))
-                 (node-refs (mapcar #'car (org-roam-db-query
-                                           [:select [ref] :from refs :where (= node-id $s1)]
-                                           id)))
-                 (matches
-                  (and
-                   (or (null query)
-                       (string-match-p (regexp-quote query) (or title ""))
-                       (cl-some (lambda (a) (string-match-p (regexp-quote query) a))
-                                node-aliases))
-                   (or (null tags)
-                       (cl-every (lambda (t-wanted) (member t-wanted node-tags))
-                                 (append tags nil)))
-                   (or (null refs)
-                       (cl-every (lambda (r) (member r node-refs))
-                                 (append refs nil))))))
-            (when matches
-              (if (>= (length results) effective-limit)
-                  (setq truncated t)
-                (push `((id . ,id)
-                        (title . ,title)
-                        (file . ,file)
-                        (level . ,level)
-                        (tags . ,(vconcat node-tags))
-                        (aliases . ,(vconcat node-aliases))
-                        (refs . ,(vconcat node-refs)))
-                      results)))))
+        (catch 'mcp-roam-search-done
+          (dolist (row rows)
+            (let* ((id (nth 0 row))
+                   (title (nth 1 row))
+                   (file (nth 2 row))
+                   (level (nth 3 row))
+                   (node-tags (mapcar #'car (org-roam-db-query
+                                             [:select [tag] :from tags :where (= node-id $s1)]
+                                             id)))
+                   (node-aliases (mapcar #'car (org-roam-db-query
+                                                [:select [alias] :from aliases :where (= node-id $s1)]
+                                                id)))
+                   (node-refs (mapcar #'car (org-roam-db-query
+                                             [:select [ref] :from refs :where (= node-id $s1)]
+                                             id)))
+                   (matches
+                    (and
+                     (or (null query)
+                         (string-match-p (regexp-quote query) (or title ""))
+                         (cl-some (lambda (a) (string-match-p (regexp-quote query) a))
+                                  node-aliases))
+                     (or (null tags)
+                         (cl-every (lambda (t-wanted) (member t-wanted node-tags))
+                                   (append tags nil)))
+                     (or (null refs)
+                         (cl-every (lambda (r) (member r node-refs))
+                                   (append refs nil))))))
+              (when matches
+                (if (>= (length results) effective-limit)
+                    (progn (setq truncated t)
+                           (throw 'mcp-roam-search-done nil))
+                  (push `((id . ,id)
+                          (title . ,title)
+                          (file . ,file)
+                          (level . ,level)
+                          (tags . ,(vconcat node-tags))
+                          (aliases . ,(vconcat node-aliases))
+                          (refs . ,(vconcat node-refs)))
+                        results))))))
         (json-encode `((results . ,(vconcat (nreverse results)))
                        (truncated . ,(if truncated t :false)))))
     (error (json-encode `((error . ,(error-message-string err)))))))

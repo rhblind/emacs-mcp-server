@@ -46,8 +46,10 @@ subtree.  Properties and metadata are preserved."
                 (remove-tags (alist-get 'remove_tags args))
                 (properties (alist-get 'properties args))
                 (remove-properties (alist-get 'remove_properties args))
-                (scheduled (alist-get 'scheduled args 'unset))
-                (deadline (alist-get 'deadline args 'unset))
+                (scheduled (mcp-server-emacs-tools-org-common--clearable-arg
+                            args 'scheduled))
+                (deadline (mcp-server-emacs-tools-org-common--clearable-arg
+                           args 'deadline))
                 (body (alist-get 'body args)))
             (when title
               (org-edit-headline title)
@@ -81,12 +83,12 @@ subtree.  Properties and metadata are preserved."
                 (org-delete-property k))
               (push "properties" changed))
             (unless (eq scheduled 'unset)
-              (if (null scheduled)
+              (if (eq scheduled 'clear)
                   (org-schedule '(4))
                 (org-schedule nil scheduled))
               (push "scheduled" changed))
             (unless (eq deadline 'unset)
-              (if (null deadline)
+              (if (eq deadline 'clear)
                   (org-deadline '(4))
                 (org-deadline nil deadline))
               (push "deadline" changed))
@@ -102,7 +104,7 @@ subtree.  Properties and metadata are preserved."
  (make-mcp-server-tool
   :name "org-update-node"
   :title "Update Org Node"
-  :description "Modify an existing org heading.  Identify the heading by `id' (preferred) or `file'+`outline_path'.  Any subset of fields may be updated.  Before adding new tags, call org-list-tags to avoid near-duplicates (pluralization, casing, synonyms)."
+  :description "Modify an existing org heading.  Identify the heading by `id' (preferred) or `file'+`outline_path'.  Any subset of fields may be updated.  Pass null for `scheduled' or `deadline' to clear that field.  Before adding new tags, call org-list-tags to avoid near-duplicates (pluralization, casing, synonyms)."
   :input-schema '((type . "object")
                   (properties . ((id . ((type . "string")))
                                  (file . ((type . "string")))
@@ -120,8 +122,10 @@ subtree.  Properties and metadata are preserved."
                                  (properties . ((type . "object")))
                                  (remove_properties . ((type . "array")
                                                        (items . ((type . "string")))))
-                                 (scheduled . ((type . "string")))
-                                 (deadline . ((type . "string")))
+                                 (scheduled . ((type . ["string" "null"])
+                                               (description . "Scheduled date/time, or null to clear")))
+                                 (deadline . ((type . ["string" "null"])
+                                              (description . "Deadline date/time, or null to clear")))
                                  (body . ((type . "string")))))
                   (required . []))
   :function #'mcp-server-emacs-tools-org-update-node--handler

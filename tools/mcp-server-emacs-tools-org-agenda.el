@@ -47,8 +47,8 @@
       (let* ((view (or (alist-get 'view args) "day"))
              (files (or (alist-get 'files args) (org-agenda-files)))
              (files-list (append files nil))
-             (_ (when (alist-get 'files args)
-                  (mapc #'mcp-server-emacs-tools-org-common--validate-path files-list)))
+             (_ (mapc #'mcp-server-emacs-tools-org-common--validate-path
+                      files-list))
              (match (alist-get 'match args))
              (effective-match
               (pcase view
@@ -72,8 +72,6 @@
   :input-schema '((type . "object")
                   (properties . ((view . ((type . "string")
                                           (enum . ("day" "week" "todo" "tags" "search"))))
-                                 (start_date . ((type . "string")))
-                                 (span . ((type . "number")))
                                  (match . ((type . "string")))
                                  (files . ((type . "array")
                                            (items . ((type . "string")))))))

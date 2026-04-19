@@ -43,12 +43,43 @@ Larger bodies are truncated and the response carries a `truncated' flag."
   :type 'integer
   :group 'mcp-server-emacs-tools-org)
 
+(defun mcp-server-emacs-tools-org-common--truthy-p (value)
+  "Return non-nil when VALUE should be treated as true after JSON parsing.
+JSON `false' and `null' parsed by `json-parse-string' become the
+non-nil symbols `:false' and `:null'.  Treat both, plus nil, as false."
+  (and value
+       (not (eq value :false))
+       (not (eq value :null))))
+
+(defun mcp-server-emacs-tools-org-common--bool-arg (args key default)
+  "Return the boolean value of KEY in ARGS, or DEFAULT when absent.
+Normalizes JSON-parsed `:false' / `:null' to nil."
+  (let ((v (alist-get key args 'mcp-absent)))
+    (if (eq v 'mcp-absent)
+        default
+      (mcp-server-emacs-tools-org-common--truthy-p v))))
+
+(defun mcp-server-emacs-tools-org-common--clearable-arg (args key)
+  "Return the state of a clearable field KEY in ARGS.
+Returns one of:
+  `unset' - key was not supplied
+  `clear' - key was supplied as nil or JSON null (`:null')
+  STRING  - supplied value"
+  (let ((v (alist-get key args 'mcp-absent)))
+    (cond
+     ((eq v 'mcp-absent) 'unset)
+     ((or (null v) (eq v :null)) 'clear)
+     (t v))))
+
 (defun mcp-server-emacs-tools-org-common--resolve-node (args)
   "Resolve ARGS to a marker pointing at an org heading.
 ARGS is an alist that must include either:
   (id . STRING) - org-id; looked up via `org-id-find'
   (file . STRING) + (outline_path . VECTOR) - looked up via `org-find-olp'
-Signals an error if the node cannot be located."
+The resolved file is always validated against
+`mcp-server-emacs-tools-org-allowed-roots'; IDs that resolve to files
+outside the allowed roots are rejected.  Signals an error if the node
+cannot be located or the file is not allowed."
   (let ((id (alist-get 'id args))
         (file (alist-get 'file args))
         (olp (alist-get 'outline_path args)))
@@ -57,8 +88,11 @@ Signals an error if the node cannot be located."
       (let ((location (org-id-find id 'marker)))
         (unless (markerp location)
           (error "Org node not found for id: %s" id))
+        (when-let ((resolved-file (buffer-file-name (marker-buffer location))))
+          (mcp-server-emacs-tools-org-common--validate-path resolved-file))
         location))
      ((and file olp)
+      (mcp-server-emacs-tools-org-common--validate-path file)
       (let* ((buf (find-file-noselect file))
              (path-list (append olp nil)))
         (condition-case err
@@ -67,6 +101,7 @@ Signals an error if the node cannot be located."
           (error
            (error "Outline path not found in %s: %S" file path-list)))))
      (file
+      (mcp-server-emacs-tools-org-common--validate-path file)
       (let ((buf (find-file-noselect file)))
         (with-current-buffer buf
           (save-excursion
@@ -159,15 +194,21 @@ falls back to directories containing `org-directory' and
 
 (defun mcp-server-emacs-tools-org-common--validate-path (path)
   "Validate PATH is inside an allowed root.
-Returns PATH (expanded) on success; signals an error on failure."
+Compares true names on both sides so symlinked roots (e.g. macOS
+`/tmp' -> `/private/tmp') match correctly.  Returns PATH (expanded)
+on success; signals an error on failure."
   (let* ((abs (expand-file-name path))
+         (abs-true (file-truename abs))
          (roots (mcp-server-emacs-tools-org-common--effective-roots)))
     (unless roots
       (error "No allowed roots configured; set `mcp-server-emacs-tools-org-allowed-roots' or `org-directory'"))
     (unless (cl-some (lambda (root)
-                       (string-prefix-p (file-name-as-directory
-                                         (expand-file-name root))
-                                        abs))
+                       (let ((root-true (file-name-as-directory
+                                         (file-truename
+                                          (expand-file-name root)))))
+                         (or (string-prefix-p root-true abs-true)
+                             (string-prefix-p root-true
+                                              (file-name-as-directory abs-true)))))
                      roots)
       (error "Path %s is outside allowed roots: %S" abs roots))
     abs))

@@ -18,6 +18,13 @@
       (let* ((source (or (alist-get 'source args) (error "`source' is required")))
              (target (or (alist-get 'target args) (error "`target' is required")))
              (source-marker (mcp-server-emacs-tools-org-common--resolve-node source))
+             ;; Ensure the source has a stable ID before refiling so we can
+             ;; always locate it afterwards.  This respects
+             ;; `mcp-server-emacs-tools-org-auto-id'; when that is nil and
+             ;; the node has no pre-existing ID, we fall back to an empty
+             ;; outline path in the response.
+             (source-id (mcp-server-emacs-tools-org-common--promote-to-id
+                         source-marker))
              (target-marker (mcp-server-emacs-tools-org-common--resolve-node target))
              (target-buf (marker-buffer target-marker))
              (target-file (buffer-file-name target-buf))
@@ -33,14 +40,15 @@
             (when mcp-server-emacs-tools-org-auto-save (save-buffer))))
         (with-current-buffer target-buf
           (when mcp-server-emacs-tools-org-auto-save (save-buffer)))
-        (let* ((new-marker
-                (org-id-find (or (alist-get 'id source) nil) 'marker))
+        (let* ((new-marker (and (stringp source-id)
+                                (> (length source-id) 0)
+                                (org-id-find source-id 'marker)))
                (new-olp (when (markerp new-marker)
                           (with-current-buffer (marker-buffer new-marker)
                             (save-excursion
                               (goto-char new-marker)
                               (mcp-server-emacs-tools-org-common--compute-outline-path))))))
-          (json-encode `((id . ,(alist-get 'id source))
+          (json-encode `((id . ,source-id)
                          (new_file . ,target-file)
                          (new_outline_path . ,(vconcat (or new-olp '())))))))
     (error (json-encode `((error . ,(error-message-string err)))))))

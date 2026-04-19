@@ -12,20 +12,21 @@
 (require 'json)
 
 (defun mcp-server-emacs-tools-org-search--scope-files (scope files directory)
-  "Resolve SCOPE to a list of files.
+  "Resolve SCOPE to a list of files, validating each against allowed roots.
 SCOPE is a string; FILES and DIRECTORY are optional supporting args."
-  (pcase scope
-    ("agenda" (org-agenda-files))
-    ("file"
-     (unless files (error "scope=file requires `files'"))
-     (let ((as-list (append files nil)))
-       (mapc #'mcp-server-emacs-tools-org-common--validate-path as-list)
-       as-list))
-    ("directory"
-     (unless directory (error "scope=directory requires `directory'"))
-     (mcp-server-emacs-tools-org-common--validate-path directory)
-     (directory-files-recursively directory "\\.org$"))
-    (_ (error "Unknown scope: %s" scope))))
+  (let ((resolved
+         (pcase scope
+           ("agenda" (org-agenda-files))
+           ("file"
+            (unless files (error "scope=file requires `files'"))
+            (append files nil))
+           ("directory"
+            (unless directory (error "scope=directory requires `directory'"))
+            (mcp-server-emacs-tools-org-common--validate-path directory)
+            (directory-files-recursively directory "\\.org$"))
+           (_ (error "Unknown scope: %s" scope)))))
+    (mapc #'mcp-server-emacs-tools-org-common--validate-path resolved)
+    resolved))
 
 (defun mcp-server-emacs-tools-org-search--handler (args)
   "Handle org-search tool call with ARGS."
