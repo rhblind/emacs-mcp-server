@@ -59,6 +59,16 @@ Normalizes JSON-parsed `:false' / `:null' to nil."
         default
       (mcp-server-emacs-tools-org-common--truthy-p v))))
 
+(defun mcp-server-emacs-tools-org-common--non-negative-integer (value default)
+  "Coerce VALUE to a non-negative integer, falling back to DEFAULT.
+Accepts integers and floats (truncated); nil / non-numeric values
+return DEFAULT.  Negative results are clamped to 0.  DEFAULT must
+already be an integer or nil."
+  (cond
+   ((integerp value) (max 0 value))
+   ((floatp value) (max 0 (truncate value)))
+   (t default)))
+
 (defun mcp-server-emacs-tools-org-common--clearable-arg (args key)
   "Return the state of a clearable field KEY in ARGS.
 Returns one of:

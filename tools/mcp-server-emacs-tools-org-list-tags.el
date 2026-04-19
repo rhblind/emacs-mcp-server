@@ -77,7 +77,10 @@ across org-roam versions."
              (directory (alist-get 'directory args))
              (include-configured (mcp-server-emacs-tools-org-common--bool-arg
                                   args 'include_configured t))
-             (limit (alist-get 'limit args))
+             (limit (let ((v (alist-get 'limit args)))
+                      (and v
+                           (mcp-server-emacs-tools-org-common--non-negative-integer
+                            v 0))))
              (counts
               (pcase scope
                 ("roam"
@@ -139,7 +142,7 @@ across org-roam versions."
                                            (items . ((type . "string")))))
                                  (directory . ((type . "string")))
                                  (include_configured . ((type . "boolean")))
-                                 (limit . ((type . "number")))))
+                                 (limit . ((type . "integer")))))
                   (required . []))
   :function #'mcp-server-emacs-tools-org-list-tags--handler
   :annotations '((readOnlyHint . t)

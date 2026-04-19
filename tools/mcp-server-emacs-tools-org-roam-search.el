@@ -35,7 +35,8 @@ subqueries per node, which scaled linearly with DB size."
       (let* ((query (alist-get 'query args))
              (tags (alist-get 'tags args))
              (refs (alist-get 'refs args))
-             (limit (or (alist-get 'limit args) 25))
+             (limit (mcp-server-emacs-tools-org-common--non-negative-integer
+                     (alist-get 'limit args) 25))
              (max-limit 200)
              (effective-limit (min limit max-limit))
              (rows (org-roam-db-query
@@ -47,6 +48,7 @@ subqueries per node, which scaled linearly with DB size."
              (ref-idx (mcp-server-emacs-tools-org-roam-search--build-index
                        [:select [node-id ref] :from refs]))
              (results '())
+             (count 0)
              (truncated nil))
         (catch 'mcp-roam-search-done
           (dolist (row rows)
@@ -54,11 +56,21 @@ subqueries per node, which scaled linearly with DB size."
                    (title (nth 1 row))
                    (file (nth 2 row))
                    (level (nth 3 row))
+                   ;; Path safety: skip nodes whose file is outside
+                   ;; `mcp-server-emacs-tools-org-allowed-roots'.  This
+                   ;; prevents enumerating paths/metadata for disallowed
+                   ;; files via the roam DB.
+                   (file-ok (condition-case nil
+                                (progn
+                                  (mcp-server-emacs-tools-org-common--validate-path file)
+                                  t)
+                              (error nil)))
                    (node-tags (gethash id tag-idx))
                    (node-aliases (gethash id alias-idx))
                    (node-refs (gethash id ref-idx))
                    (matches
                     (and
+                     file-ok
                      (or (null query)
                          (string-match-p (regexp-quote query) (or title ""))
                          (cl-some (lambda (a) (string-match-p (regexp-quote query) a))
@@ -70,7 +82,7 @@ subqueries per node, which scaled linearly with DB size."
                          (cl-every (lambda (r) (member r node-refs))
                                    (append refs nil))))))
               (when matches
-                (if (>= (length results) effective-limit)
+                (if (>= count effective-limit)
                     (progn (setq truncated t)
                            (throw 'mcp-roam-search-done nil))
                   (push `((id . ,id)
@@ -80,7 +92,8 @@ subqueries per node, which scaled linearly with DB size."
                           (tags . ,(vconcat node-tags))
                           (aliases . ,(vconcat node-aliases))
                           (refs . ,(vconcat node-refs)))
-                        results))))))
+                        results)
+                  (setq count (1+ count)))))))
         (json-encode `((results . ,(vconcat (nreverse results)))
                        (truncated . ,(if truncated t :false)))))
     (error (json-encode `((error . ,(error-message-string err)))))))
@@ -97,7 +110,7 @@ subqueries per node, which scaled linearly with DB size."
                                             (items . ((type . "string")))))
                                    (refs . ((type . "array")
                                             (items . ((type . "string")))))
-                                   (limit . ((type . "number")))))
+                                   (limit . ((type . "integer")))))
                     (required . []))
     :function #'mcp-server-emacs-tools-org-roam-search--handler
     :annotations '((readOnlyHint . t)

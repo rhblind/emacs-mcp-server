@@ -10,6 +10,7 @@
   (when tools-dir (add-to-list 'load-path tools-dir)))
 
 (require 'mcp-server-emacs-tools-org-roam-capture)
+(require 'mcp-server-emacs-tools-org-roam-search)
 
 (defconst mcp-test-roam-available
   (and (>= emacs-major-version 29)
@@ -78,6 +79,41 @@ template produced only a `#+title:' line."
         (let ((buf (buffer-string)))
           (should (string-match-p "^#\\+filetags:.*:tagone:" buf))
           (should (string-match-p "^#\\+filetags:.*:tagtwo:" buf)))))))
+
+(ert-deftest mcp-test-org-roam-capture-aliases-indexed-in-db ()
+  "Direct mode's post-capture aliases appear in the roam DB.
+Regression test: `org-roam-db-sync' now runs AFTER aliases/refs/filetags
+have been written so `org-roam-search` can find them."
+  (skip-unless mcp-test-roam-available)
+  (mcp-test-with-roam-fixture dir
+    (let* ((json (mcp-server-emacs-tools-org-roam-capture--handler
+                  '((title . "Indexed Node")
+                    (aliases . ["IndexedAlias"]))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json)))
+           (id (alist-get 'id result)))
+      (should (stringp id))
+      ;; The alias must be visible to roam-search.
+      (let* ((search-json (mcp-server-emacs-tools-org-roam-search--handler
+                           '((query . "IndexedAlias"))))
+             (search-result (let ((json-object-type 'alist))
+                              (json-read-from-string search-json)))
+             (results (append (alist-get 'results search-result) nil)))
+        (should (seq-find (lambda (r) (equal (alist-get 'id r) id)) results))))))
+
+(ert-deftest mcp-test-org-roam-capture-returns-created-id-not-title-collision ()
+  "When another node shares the title, we return the one we created.
+Regression test: the previous title-lookup could return the wrong node."
+  (skip-unless mcp-test-roam-available)
+  (mcp-test-with-roam-fixture dir
+    ;; The fixture already has \"Concept A\"; create a second \"Concept A\"
+    ;; and check the returned id is NOT the pre-existing one.
+    (let* ((pre-existing-id "roam-concept-a-0001")
+           (json (mcp-server-emacs-tools-org-roam-capture--handler
+                  '((title . "Concept A"))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json)))
+           (new-id (alist-get 'id result)))
+      (should (stringp new-id))
+      (should-not (equal new-id pre-existing-id)))))
 
 (provide 'test-mcp-org-roam-capture)
 ;;; test-mcp-org-roam-capture.el ends here

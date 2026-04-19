@@ -32,11 +32,16 @@
                                  args 'include_backlinks t))
              (include-forward (mcp-server-emacs-tools-org-common--bool-arg
                                args 'include_forward_links nil))
-             (backlink-limit (or (alist-get 'backlink_limit args) 50))
+             (backlink-limit (mcp-server-emacs-tools-org-common--non-negative-integer
+                              (alist-get 'backlink_limit args) 50))
              (node (org-roam-node-from-id id))
              (_ (unless node (error "Roam node not found: %s" id)))
              (title (org-roam-node-title node))
              (file (org-roam-node-file node))
+             ;; Path safety: validate up front regardless of `include_body',
+             ;; so clients cannot enumerate file paths for roam nodes outside
+             ;; `mcp-server-emacs-tools-org-allowed-roots'.
+             (_ (when file (mcp-server-emacs-tools-org-common--validate-path file)))
              (tags (org-roam-node-tags node))
              (aliases (org-roam-node-aliases node))
              (refs (org-roam-node-refs node))
@@ -101,7 +106,7 @@
                                    (include_body . ((type . "boolean")))
                                    (include_backlinks . ((type . "boolean")))
                                    (include_forward_links . ((type . "boolean")))
-                                   (backlink_limit . ((type . "number")))))
+                                   (backlink_limit . ((type . "integer")))))
                     (required . ["id"]))
     :function #'mcp-server-emacs-tools-org-roam-get-node--handler
     :annotations '((readOnlyHint . t)

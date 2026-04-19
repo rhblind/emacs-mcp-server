@@ -17,6 +17,30 @@
 (declare-function org-roam-db-query "org-roam-db" (sql &rest args))
 (declare-function org-roam-db-sync "org-roam-db" ())
 
+(defun mcp-server-emacs-tools-org-roam-capture--last-captured ()
+  "Return (ID . FILE) for the node most recently created by `org-capture'.
+Uses `org-capture-last-stored-marker' so we locate the exact node
+`org-roam-capture-' created, rather than querying the DB by title
+(titles are not unique in roam).  Returns nil when the marker is
+unset or the ID can't be read from the captured buffer."
+  (when (and (boundp 'org-capture-last-stored-marker)
+             (markerp org-capture-last-stored-marker)
+             (marker-buffer org-capture-last-stored-marker))
+    (let ((marker org-capture-last-stored-marker))
+      (with-current-buffer (marker-buffer marker)
+        (org-with-wide-buffer
+         (save-excursion
+           (let ((file (buffer-file-name)))
+             (goto-char marker)
+             ;; File-level roam nodes keep their ID in a property drawer
+             ;; at the top of the file; heading-level roam nodes have it
+             ;; on the heading where the marker points.  Try both.
+             (let ((id (or (org-entry-get (point) "ID")
+                           (save-excursion
+                             (goto-char (point-min))
+                             (org-entry-get (point) "ID")))))
+               (when (and file id) (cons id file))))))))))
+
 (defun mcp-server-emacs-tools-org-roam-capture--direct (args)
   "Create a new roam node directly from ARGS without a template."
   (let* ((title (or (alist-get 'title args) (error "`title' is required")))
@@ -30,13 +54,12 @@
             :target (file+head "${slug}.org" "#+title: ${title}\n")
             :immediate-finish t :unnarrowed t)))
     (org-roam-capture- :node node :templates (list synthetic-template))
-    (org-roam-db-sync)
-    (let ((rows (org-roam-db-query
-                 [:select [id file] :from nodes :where (= title $s1)]
-                 title)))
-      (when rows
-        (let* ((row (car rows)) (id (nth 0 row)) (file (nth 1 row)))
+    (let ((captured (mcp-server-emacs-tools-org-roam-capture--last-captured)))
+      (when captured
+        (let ((id (car captured)) (file (cdr captured)))
           (mcp-server-emacs-tools-org-common--validate-path file)
+          ;; Apply post-capture edits BEFORE syncing the DB so aliases,
+          ;; refs, and filetags end up indexed.
           (when (or tags aliases refs)
             (with-current-buffer (find-file-noselect file)
               (save-excursion
@@ -50,11 +73,11 @@
                 (when tags
                   ;; Direct-mode roam nodes are file-level (no top heading),
                   ;; so store tags as `#+filetags:' rather than calling
-                  ;; `org-set-tags' off-heading.  Insert the line after the
-                  ;; top property drawer and any existing `#+title:' line.
+                  ;; `org-set-tags' off-heading.
                   (mcp-server-emacs-tools-org-roam-capture--set-filetags
                    (append tags nil)))
                 (when mcp-server-emacs-tools-org-auto-save (save-buffer)))))
+          (org-roam-db-sync)
           `((id . ,id) (file . ,file) (title . ,title)))))))
 
 (defun mcp-server-emacs-tools-org-roam-capture--set-filetags (tags)
@@ -82,13 +105,11 @@ Replaces an existing `#+filetags:' line or inserts one after the
          (org-capture-initial (or content ""))
          (node (org-roam-node-create :title title)))
     (org-roam-capture- :keys key :node node)
-    (org-roam-db-sync)
-    (let ((rows (org-roam-db-query
-                 [:select [id file] :from nodes :where (= title $s1)]
-                 title)))
-      (when rows
-        (let* ((row (car rows)) (id (nth 0 row)) (file (nth 1 row)))
+    (let ((captured (mcp-server-emacs-tools-org-roam-capture--last-captured)))
+      (when captured
+        (let ((id (car captured)) (file (cdr captured)))
           (mcp-server-emacs-tools-org-common--validate-path file)
+          (org-roam-db-sync)
           `((id . ,id) (file . ,file) (title . ,title)))))))
 
 (defun mcp-server-emacs-tools-org-roam-capture--handler (args)

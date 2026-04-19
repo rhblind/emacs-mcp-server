@@ -80,5 +80,20 @@
            (result (let ((json-object-type 'alist)) (json-read-from-string json))))
       (should (alist-get 'error result)))))
 
+(ert-deftest mcp-test-org-list-tags-accepts-float-limit ()
+  "`limit' accepts a JSON number that happens to parse as float.
+Regression test: `seq-take' requires an integer, so a float like
+`1.0' must be coerced before use."
+  (mcp-test-with-org-fixture "sample-agenda.org" path
+    (let* ((json (mcp-server-emacs-tools-org-list-tags--handler
+                  `((scope . "file")
+                    (files . [,path])
+                    (include_configured . :false)
+                    (limit . 1.0))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json)))
+           (tags (alist-get 'tags result)))
+      (should (vectorp tags))
+      (should (= (length tags) 1)))))
+
 (provide 'test-mcp-org-list-tags)
 ;;; test-mcp-org-list-tags.el ends here

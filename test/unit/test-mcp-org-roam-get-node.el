@@ -55,5 +55,35 @@
            (result (let ((json-object-type 'alist)) (json-read-from-string json))))
       (should (alist-get 'error result)))))
 
+(ert-deftest mcp-test-org-roam-get-node-accepts-float-backlink-limit ()
+  "`backlink_limit' accepts a JSON number that parses as float.
+Regression test: `seq-take' requires an integer."
+  (skip-unless mcp-test-roam-available)
+  (mcp-test-with-roam-fixture dir
+    (let* ((json (mcp-server-emacs-tools-org-roam-get-node--handler
+                  '((id . "roam-concept-a-0001")
+                    (include_backlinks . t)
+                    (backlink_limit . 10.0))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should (alist-get 'node result))
+      (should (vectorp (alist-get 'backlinks result))))))
+
+(ert-deftest mcp-test-org-roam-get-node-rejects-file-outside-root ()
+  "get-node validates the roam node's file even when `include_body' is false.
+Regression test: clients must not be able to enumerate paths for
+roam nodes that live outside `mcp-server-emacs-tools-org-allowed-roots'."
+  (skip-unless mcp-test-roam-available)
+  (mcp-test-with-roam-fixture dir
+    ;; Tighten allowed-roots to a different directory so the fixture is
+    ;; disallowed.  Need to shadow the binding the fixture macro set up.
+    (let ((mcp-server-emacs-tools-org-allowed-roots
+           (list (make-temp-file "mcp-other-root-" t))))
+      (let* ((json (mcp-server-emacs-tools-org-roam-get-node--handler
+                    '((id . "roam-concept-a-0001")
+                      (include_body . :false)
+                      (include_backlinks . :false))))
+             (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+        (should (alist-get 'error result))))))
+
 (provide 'test-mcp-org-roam-get-node)
 ;;; test-mcp-org-roam-get-node.el ends here

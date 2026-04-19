@@ -62,5 +62,30 @@
       (should (= (length (alist-get 'results result)) 1))
       (should (eq (alist-get 'truncated result) t)))))
 
+(ert-deftest mcp-test-org-roam-search-accepts-float-limit ()
+  "`limit' accepts a JSON number that parses as a float.
+Regression test: internal counter/comparisons must coerce to integer."
+  (skip-unless mcp-test-roam-available)
+  (mcp-test-with-roam-fixture dir
+    (let* ((json (mcp-server-emacs-tools-org-roam-search--handler
+                  '((query . "") (limit . 1.0))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should (= (length (alist-get 'results result)) 1))
+      (should (eq (alist-get 'truncated result) t)))))
+
+(ert-deftest mcp-test-org-roam-search-filters-files-outside-root ()
+  "Nodes whose file is outside allowed roots are silently filtered out.
+Regression test: `file' values from the roam DB are validated against
+`mcp-server-emacs-tools-org-allowed-roots'."
+  (skip-unless mcp-test-roam-available)
+  (mcp-test-with-roam-fixture dir
+    ;; Tighten allowed-roots to another temp dir that the fixture isn't in.
+    (let ((mcp-server-emacs-tools-org-allowed-roots
+           (list (make-temp-file "mcp-other-root-" t))))
+      (let* ((json (mcp-server-emacs-tools-org-roam-search--handler
+                    '((query . "Concept"))))
+             (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+        (should (= (length (alist-get 'results result)) 0))))))
+
 (provide 'test-mcp-org-roam-search)
 ;;; test-mcp-org-roam-search.el ends here

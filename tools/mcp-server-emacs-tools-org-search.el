@@ -36,7 +36,8 @@ SCOPE is a string; FILES and DIRECTORY are optional supporting args."
              (scope (or (alist-get 'scope args) "agenda"))
              (files (alist-get 'files args))
              (directory (alist-get 'directory args))
-             (limit (or (alist-get 'limit args) 50))
+             (limit (mcp-server-emacs-tools-org-common--non-negative-integer
+                     (alist-get 'limit args) 50))
              (max-limit 500)
              (effective-limit (min limit max-limit))
              (resolved (mcp-server-emacs-tools-org-search--scope-files
@@ -82,7 +83,7 @@ SCOPE is a string; FILES and DIRECTORY are optional supporting args."
                                  (files . ((type . "array")
                                            (items . ((type . "string")))))
                                  (directory . ((type . "string")))
-                                 (limit . ((type . "number")))))
+                                 (limit . ((type . "integer")))))
                   (required . ["match"]))
   :function #'mcp-server-emacs-tools-org-search--handler
   :annotations '((readOnlyHint . t)
