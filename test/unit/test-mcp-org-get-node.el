@@ -72,5 +72,39 @@ Regression test: real MCP calls arrive with `:false', not elisp nil."
       (should (vectorp children))
       (should (> (length children) 0)))))
 
+(ert-deftest mcp-test-org-get-node-file-level-body ()
+  "File-only call returns pre-heading content as `body'.
+Regression test for the case where a `file' (without `outline_path')
+was resolved but `--node-to-alist' returned no body because point
+wasn't on a heading."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    ;; sample-notes.org has no pre-heading content before `* Project Alpha',
+    ;; so prepend some and re-point at the file-level node.
+    (with-temp-buffer
+      (insert-file-contents path)
+      (goto-char (point-min))
+      (insert "Top-of-file preamble.\n\n")
+      (write-region (point-min) (point-max) path))
+    (let* ((json (mcp-server-emacs-tools-org-get-node--handler
+                  `((file . ,path))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should (stringp (alist-get 'body result)))
+      (should (string-match-p "Top-of-file preamble\\."
+                              (alist-get 'body result))))))
+
+(ert-deftest mcp-test-org-get-node-returns-auto-created-id ()
+  "When auto-id promotes a new ID, the returned alist carries it.
+Regression test: the ID must appear in the serialized node, not just
+the file."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    (let* ((mcp-server-emacs-tools-org-auto-id t)
+           ;; `Implementation' has no pre-existing ID in the fixture.
+           (json (mcp-server-emacs-tools-org-get-node--handler
+                  `((file . ,path)
+                    (outline_path . ["Project Alpha" "Implementation"]))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should (stringp (alist-get 'id result)))
+      (should (> (length (alist-get 'id result)) 0)))))
+
 (provide 'test-mcp-org-get-node)
 ;;; test-mcp-org-get-node.el ends here

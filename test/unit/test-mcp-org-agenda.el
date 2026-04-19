@@ -39,6 +39,22 @@
   "Tool is registered."
   (should (mcp-server-tools-exists-p "org-agenda")))
 
+(ert-deftest mcp-test-org-agenda-returns-auto-created-ids ()
+  "Agenda entries carry auto-created IDs for headings that lacked one.
+Regression test: promote-to-id must run before serialization."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    (let* ((mcp-server-emacs-tools-org-auto-id t)
+           (org-agenda-files (list path))
+           (json (mcp-server-emacs-tools-org-agenda--handler
+                  '((view . "tags") (match . "LEVEL=2"))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json)))
+           (entries (append (alist-get 'entries result) nil))
+           (impl (seq-find (lambda (e) (equal (alist-get 'title e) "Implementation"))
+                           entries)))
+      (should impl)
+      (should (stringp (alist-get 'id impl)))
+      (should (> (length (alist-get 'id impl)) 0)))))
+
 (ert-deftest mcp-test-org-agenda-rejects-files-outside-root ()
   "org-agenda rejects `files' outside allowed roots."
   (let* ((outside (make-temp-file "mcp-outside-" nil ".org"))

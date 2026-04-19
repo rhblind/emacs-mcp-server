@@ -60,5 +60,24 @@
           (should (string-match-p "example.com/x" buf))
           (should (string-match-p "example.com/y" buf)))))))
 
+(ert-deftest mcp-test-org-roam-capture-direct-with-tags ()
+  "Direct mode writes file-level tags via `#+filetags:' on a title-only note.
+Regression test: the previous implementation searched for `^\\*' and
+called `org-set-tags' off-heading, which errors when the synthetic
+template produced only a `#+title:' line."
+  (skip-unless mcp-test-roam-available)
+  (mcp-test-with-roam-fixture dir
+    (let* ((json (mcp-server-emacs-tools-org-roam-capture--handler
+                  '((title . "Tagged Node")
+                    (tags . ["tagone" "tagtwo"]))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json)))
+           (file (alist-get 'file result)))
+      (should file)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((buf (buffer-string)))
+          (should (string-match-p "^#\\+filetags:.*:tagone:" buf))
+          (should (string-match-p "^#\\+filetags:.*:tagtwo:" buf)))))))
+
 (provide 'test-mcp-org-roam-capture)
 ;;; test-mcp-org-roam-capture.el ends here

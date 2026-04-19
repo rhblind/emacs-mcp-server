@@ -18,11 +18,25 @@
   "Return TEMPLATE with the first unescaped `%?' replaced by CONTENT.
 MCP calls are non-interactive, so the `%?' cursor marker is pre-filled
 with CONTENT before org-capture processes the template.  When TEMPLATE
-contains no `%?', TEMPLATE is returned unchanged."
-  (if (and (stringp template) (stringp content)
-           (string-match "%\\?" template))
-      (replace-match content t t template)
-    template))
+contains no `%?', TEMPLATE is returned unchanged.  Respects org-capture
+`%%' escaping: a literal `%?' in the output (written `%%?' in the
+template) is not treated as the cursor marker."
+  (if (not (and (stringp template) (stringp content)))
+      template
+    (let ((start 0) done result)
+      (while (and (not done)
+                  (string-match "\\(%%\\)\\|\\(%\\?\\)" template start))
+        (cond
+         ;; %% -> keep both characters and continue past them.
+         ((match-beginning 1)
+          (setq start (match-end 0)))
+         ;; %? -> splice content in place of the match and stop.
+         (t
+          (setq result (concat (substring template 0 (match-beginning 2))
+                               content
+                               (substring template (match-end 2))))
+          (setq done t))))
+      (or result template))))
 
 (defun mcp-server-emacs-tools-org-capture--template-mode (args)
   "Run org-capture with a template from ARGS.

@@ -51,5 +51,25 @@
   "Tool is registered."
   (should (mcp-server-tools-exists-p "org-search")))
 
+(ert-deftest mcp-test-org-search-returns-auto-created-ids ()
+  "When auto-id promotes new IDs, results carry them.
+Regression test: promote-to-id must run before serialization so that
+newly-assigned IDs are visible in the search output."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    ;; `** Implementation' has no ID in the fixture.  `{Implementation}'
+    ;; is org's heading-text regexp match.
+    (let* ((mcp-server-emacs-tools-org-auto-id t)
+           (json (mcp-server-emacs-tools-org-search--handler
+                  `((match . "LEVEL=2")
+                    (scope . "file")
+                    (files . [,path]))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json)))
+           (results (append (alist-get 'results result) nil))
+           (impl (seq-find (lambda (r) (equal (alist-get 'title r) "Implementation"))
+                           results)))
+      (should impl)
+      (should (stringp (alist-get 'id impl)))
+      (should (> (length (alist-get 'id impl)) 0)))))
+
 (provide 'test-mcp-org-search)
 ;;; test-mcp-org-search.el ends here

@@ -121,11 +121,43 @@ cannot be located or the file is not allowed."
        (setq path (append path (list (org-get-heading t t t t)))))
      path)))
 
+(defun mcp-server-emacs-tools-org-common--extract-body-at-point ()
+  "Extract the body text relevant to point.
+On a heading, returns text between the heading's `:contents-begin' and
+`:contents-end' (i.e. heading body plus children).  Off a heading
+(file-level node), returns pre-heading content: everything from
+`point-min' to the first heading, or the whole file if there are no
+headings.  Returns a cons cell (BODY . TRUNCATED) where BODY is the
+possibly truncated string and TRUNCATED is t when the value exceeds
+`mcp-server-emacs-tools-org-max-body-bytes'."
+  (let* ((limit mcp-server-emacs-tools-org-max-body-bytes)
+         (raw
+          (cond
+           ((org-at-heading-p)
+            (let* ((element (org-element-at-point))
+                   (begin (and element (org-element-property :contents-begin element)))
+                   (end (and element (org-element-property :contents-end element))))
+              (if (and begin end)
+                  (buffer-substring-no-properties begin end)
+                "")))
+           (t
+            (let ((begin (point-min))
+                  (end (save-excursion
+                         (goto-char (point-min))
+                         (if (re-search-forward org-heading-regexp nil t)
+                             (match-beginning 0)
+                           (point-max)))))
+              (buffer-substring-no-properties begin end)))))
+         (truncated (> (length raw) limit)))
+    (cons (if truncated (substring raw 0 limit) raw) truncated)))
+
 (cl-defun mcp-server-emacs-tools-org-common--node-to-alist
     (marker &key (include-body t))
   "Serialize node at MARKER to an alist.
 When INCLUDE-BODY is non-nil, include the node body, possibly truncated
-to `mcp-server-emacs-tools-org-max-body-bytes'."
+to `mcp-server-emacs-tools-org-max-body-bytes'.  Supports both
+heading-based markers (extracts subtree body) and file-level markers
+(extracts pre-heading content)."
   (with-current-buffer (marker-buffer marker)
     (org-with-wide-buffer
      (goto-char marker)
@@ -146,15 +178,9 @@ to `mcp-server-emacs-tools-org-max-body-bytes'."
             (body nil)
             (truncated nil))
        (when include-body
-         (let ((element (and (org-at-heading-p) (org-element-at-point))))
-           (when element
-             (let* ((begin (org-element-property :contents-begin element))
-                    (end (org-element-property :contents-end element))
-                    (raw (if (and begin end) (buffer-substring-no-properties begin end) "")))
-               (setq body (if (> (length raw) mcp-server-emacs-tools-org-max-body-bytes)
-                              (progn (setq truncated t)
-                                     (substring raw 0 mcp-server-emacs-tools-org-max-body-bytes))
-                            raw))))))
+         (let ((bt (mcp-server-emacs-tools-org-common--extract-body-at-point)))
+           (setq body (car bt))
+           (setq truncated (cdr bt))))
        (let ((result `((id . ,id)
                        (title . ,title)
                        (file . ,file)

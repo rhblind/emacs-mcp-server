@@ -59,6 +59,26 @@
         (should-not (string-match-p "Design notes for alpha\\." buf))
         (should (string-match-p "\\*\\*\\* Architecture" buf))))))
 
+(ert-deftest mcp-test-org-update-node-clear-all-tags-via-empty-array ()
+  "`tags' set to an empty array clears all existing tags.
+Regression test: the handler previously skipped the tag update block
+when the value was an empty list because it treated presence as
+truthiness.  Explicit empty-list input must now clear tags."
+  (mcp-test-with-org-fixture "sample-agenda.org" path
+    ;; agenda-task-0003 starts with :work:release:
+    (mcp-server-emacs-tools-org-update-node--handler
+     '((id . "agenda-task-0003")
+       (tags . [])))
+    (with-temp-buffer
+      (insert-file-contents path)
+      (let ((line (save-excursion
+                    (goto-char (point-min))
+                    (re-search-forward "^\\*+ .*Release v0\\.5\\.0.*$" nil t)
+                    (match-string 0))))
+        (should line)
+        (should-not (string-match-p ":work:" line))
+        (should-not (string-match-p ":release:" line))))))
+
 (ert-deftest mcp-test-org-update-node-registered ()
   "Tool is registered."
   (should (mcp-server-tools-exists-p "org-update-node")))

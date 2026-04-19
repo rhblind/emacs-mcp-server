@@ -22,11 +22,12 @@
           (org-with-wide-buffer
            (org-map-entries
             (lambda ()
-              (let ((alist (mcp-server-emacs-tools-org-common--node-to-alist
-                            (point-marker) :include-body nil)))
+              (let ((marker (point-marker)))
                 (when mcp-server-emacs-tools-org-auto-id
-                  (mcp-server-emacs-tools-org-common--promote-to-id (point-marker)))
-                (push alist entries)))
+                  (mcp-server-emacs-tools-org-common--promote-to-id marker))
+                (push (mcp-server-emacs-tools-org-common--node-to-alist
+                       marker :include-body nil)
+                      entries)))
             match 'file)))))
     (nreverse entries)))
 

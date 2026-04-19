@@ -54,11 +54,12 @@ SCOPE is a string; FILES and DIRECTORY are optional supporting args."
                     (when (>= count effective-limit)
                       (setq truncated t)
                       (throw 'done nil))
-                    (let ((alist (mcp-server-emacs-tools-org-common--node-to-alist
-                                  (point-marker) :include-body nil)))
+                    (let ((marker (point-marker)))
                       (when mcp-server-emacs-tools-org-auto-id
-                        (mcp-server-emacs-tools-org-common--promote-to-id (point-marker)))
-                      (push alist results)
+                        (mcp-server-emacs-tools-org-common--promote-to-id marker))
+                      (push (mcp-server-emacs-tools-org-common--node-to-alist
+                             marker :include-body nil)
+                            results)
                       (setq count (1+ count))))
                   match 'file))))))
         (json-encode `((results . ,(vconcat (nreverse results)))

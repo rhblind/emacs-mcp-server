@@ -18,8 +18,19 @@
 (declare-function org-roam-node-file "org-roam-node" (node))
 (declare-function org-roam-node-tags "org-roam-node" (node))
 
+(defun mcp-server-emacs-tools-org-roam-search--build-index (sql)
+  "Run SQL (a 2-column query returning [node-id VALUE]) and return {id -> (values...)}."
+  (let ((idx (make-hash-table :test 'equal)))
+    (dolist (row (org-roam-db-query sql))
+      (let ((id (nth 0 row)) (v (nth 1 row)))
+        (puthash id (cons v (gethash id idx)) idx)))
+    idx))
+
 (defun mcp-server-emacs-tools-org-roam-search--handler (args)
-  "Handle org-roam-search tool call with ARGS."
+  "Handle org-roam-search tool call with ARGS.
+Loads nodes and related (tags, aliases, refs) in four queries total,
+then matches client-side.  Previous implementation issued three
+subqueries per node, which scaled linearly with DB size."
   (condition-case err
       (let* ((query (alist-get 'query args))
              (tags (alist-get 'tags args))
@@ -28,8 +39,13 @@
              (max-limit 200)
              (effective-limit (min limit max-limit))
              (rows (org-roam-db-query
-                    [:select [id title file level]
-                     :from nodes]))
+                    [:select [id title file level] :from nodes]))
+             (tag-idx (mcp-server-emacs-tools-org-roam-search--build-index
+                       [:select [node-id tag] :from tags]))
+             (alias-idx (mcp-server-emacs-tools-org-roam-search--build-index
+                         [:select [node-id alias] :from aliases]))
+             (ref-idx (mcp-server-emacs-tools-org-roam-search--build-index
+                       [:select [node-id ref] :from refs]))
              (results '())
              (truncated nil))
         (catch 'mcp-roam-search-done
@@ -38,15 +54,9 @@
                    (title (nth 1 row))
                    (file (nth 2 row))
                    (level (nth 3 row))
-                   (node-tags (mapcar #'car (org-roam-db-query
-                                             [:select [tag] :from tags :where (= node-id $s1)]
-                                             id)))
-                   (node-aliases (mapcar #'car (org-roam-db-query
-                                                [:select [alias] :from aliases :where (= node-id $s1)]
-                                                id)))
-                   (node-refs (mapcar #'car (org-roam-db-query
-                                             [:select [ref] :from refs :where (= node-id $s1)]
-                                             id)))
+                   (node-tags (gethash id tag-idx))
+                   (node-aliases (gethash id alias-idx))
+                   (node-refs (gethash id ref-idx))
                    (matches
                     (and
                      (or (null query)

@@ -38,19 +38,20 @@ subtree.  Properties and metadata are preserved."
              (marker (mcp-server-emacs-tools-org-common--resolve-node args))
              (changed '()))
         (mcp-server-emacs-tools-org-common--with-node marker
-          (let ((title (alist-get 'title args))
-                (todo (alist-get 'todo_state args))
-                (priority (alist-get 'priority args))
-                (tags (alist-get 'tags args))
-                (add-tags (alist-get 'add_tags args))
-                (remove-tags (alist-get 'remove_tags args))
-                (properties (alist-get 'properties args))
-                (remove-properties (alist-get 'remove_properties args))
-                (scheduled (mcp-server-emacs-tools-org-common--clearable-arg
-                            args 'scheduled))
-                (deadline (mcp-server-emacs-tools-org-common--clearable-arg
-                           args 'deadline))
-                (body (alist-get 'body args)))
+          (let* ((title (alist-get 'title args))
+                 (todo (alist-get 'todo_state args))
+                 (priority (alist-get 'priority args))
+                 (tags-present (assq 'tags args))
+                 (tags (alist-get 'tags args))
+                 (add-tags (alist-get 'add_tags args))
+                 (remove-tags (alist-get 'remove_tags args))
+                 (properties (alist-get 'properties args))
+                 (remove-properties (alist-get 'remove_properties args))
+                 (scheduled (mcp-server-emacs-tools-org-common--clearable-arg
+                             args 'scheduled))
+                 (deadline (mcp-server-emacs-tools-org-common--clearable-arg
+                            args 'deadline))
+                 (body (alist-get 'body args)))
             (when title
               (org-edit-headline title)
               (push "title" changed))
@@ -60,11 +61,14 @@ subtree.  Properties and metadata are preserved."
             (when priority
               (org-priority (string-to-char priority))
               (push "priority" changed))
-            (when (or tags add-tags remove-tags)
+            (when (or tags-present add-tags remove-tags)
               (let* ((current (org-get-tags nil t))
                      (new-tags
                       (cond
-                       (tags (append tags nil))
+                       ;; Presence of `tags' key (possibly empty) means
+                       ;; "replace entire tag set", including clearing
+                       ;; all tags when the value is an empty list.
+                       (tags-present (append tags nil))
                        (t
                         (let ((acc current))
                           (dolist (t2 (append add-tags nil))

@@ -21,16 +21,18 @@
              (marker (progn
                        (when file
                          (mcp-server-emacs-tools-org-common--validate-path file))
-                       (mcp-server-emacs-tools-org-common--resolve-node args)))
-             (alist (mcp-server-emacs-tools-org-common--node-to-alist
-                     marker :include-body include-body)))
+                       (mcp-server-emacs-tools-org-common--resolve-node args))))
+        ;; Promote to ID before serialization so the returned alist carries
+        ;; the newly-assigned ID (when auto-id is on).
         (when (and mcp-server-emacs-tools-org-auto-id (not (alist-get 'id args)))
           (mcp-server-emacs-tools-org-common--promote-to-id marker))
-        (when include-children
-          (setq alist
-                (append alist
-                        `((children . ,(mcp-server-emacs-tools-org-get-node--children marker))))))
-        (json-encode alist))
+        (let ((alist (mcp-server-emacs-tools-org-common--node-to-alist
+                      marker :include-body include-body)))
+          (when include-children
+            (setq alist
+                  (append alist
+                          `((children . ,(mcp-server-emacs-tools-org-get-node--children marker))))))
+          (json-encode alist)))
     (error (json-encode `((error . ,(error-message-string err)))))))
 
 (defun mcp-server-emacs-tools-org-get-node--children (marker)

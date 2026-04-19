@@ -68,5 +68,20 @@
           (insert-file-contents path)
           (should (string-match-p "TODO Task captured via template" (buffer-string))))))))
 
+(ert-deftest mcp-test-org-capture-substitute-cursor-respects-escape ()
+  "`%%?' (escaped literal) is not treated as the cursor marker.
+Regression test for the %? regex."
+  (let ((fn #'mcp-server-emacs-tools-org-capture--substitute-cursor))
+    ;; Plain %? gets substituted.
+    (should (equal (funcall fn "A %? B" "X") "A X B"))
+    ;; Escaped %%? stays intact; first REAL %? after it gets substituted.
+    (should (equal (funcall fn "escape %%? then %? end" "HERE")
+                   "escape %%? then HERE end"))
+    ;; Only-escaped template is returned unchanged.
+    (should (equal (funcall fn "only %%? literal" "X")
+                   "only %%? literal"))
+    ;; Empty content leaves a gap but otherwise behaves the same.
+    (should (equal (funcall fn "A %? B" "") "A  B"))))
+
 (provide 'test-mcp-org-capture)
 ;;; test-mcp-org-capture.el ends here

@@ -61,14 +61,22 @@
                   (vconcat (nreverse rows)))))
              (forward
               (when include-forward
+                ;; Restrict to id-type links and inner-join against nodes so
+                ;; every target is guaranteed to be a real roam node.  Keeps
+                ;; us clear of file:/http:/etc link targets stored in the
+                ;; `links' table.
                 (let ((rows (org-roam-db-query
-                             [:select [dest] :from links :where (= source $s1)]
+                             [:select [links:dest nodes:title]
+                              :from links
+                              :inner-join nodes
+                              :on (= links:dest nodes:id)
+                              :where (and (= links:source $s1)
+                                          (= links:type "id"))]
                              id)))
                   (vconcat
                    (mapcar (lambda (row)
-                             (let ((n (org-roam-node-from-id (car row))))
-                               `((target_id . ,(car row))
-                                 (target_title . ,(and n (org-roam-node-title n))))))
+                             `((target_id . ,(nth 0 row))
+                               (target_title . ,(nth 1 row))))
                            rows))))))
         (json-encode
          `((node . ((id . ,id)

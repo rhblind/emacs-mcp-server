@@ -81,7 +81,8 @@ across org-roam versions."
              (counts
               (pcase scope
                 ("roam"
-                 (unless (featurep 'org-roam)
+                 (unless (and (require 'org-roam nil t)
+                              (fboundp 'org-roam-db-query))
                    (error "org-roam not installed"))
                  (mcp-server-emacs-tools-org-list-tags--roam-tags))
                 (_ (mcp-server-emacs-tools-org-list-tags--used-tags-in-files

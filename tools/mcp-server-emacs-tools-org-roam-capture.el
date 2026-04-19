@@ -48,10 +48,31 @@
                   (org-set-property "ROAM_REFS"
                                     (mapconcat #'identity (append refs nil) " ")))
                 (when tags
-                  (when (re-search-forward "^\\*" nil t) (beginning-of-line))
-                  (org-set-tags (append tags nil)))
+                  ;; Direct-mode roam nodes are file-level (no top heading),
+                  ;; so store tags as `#+filetags:' rather than calling
+                  ;; `org-set-tags' off-heading.  Insert the line after the
+                  ;; top property drawer and any existing `#+title:' line.
+                  (mcp-server-emacs-tools-org-roam-capture--set-filetags
+                   (append tags nil)))
                 (when mcp-server-emacs-tools-org-auto-save (save-buffer)))))
           `((id . ,id) (file . ,file) (title . ,title)))))))
+
+(defun mcp-server-emacs-tools-org-roam-capture--set-filetags (tags)
+  "Set `#+filetags:' to TAGS (a list of strings) in the current buffer.
+Replaces an existing `#+filetags:' line or inserts one after the
+`#+title:' line (or at `point-min' if no title line is present)."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((line (concat "#+filetags: :"
+                        (mapconcat #'identity tags ":")
+                        ":")))
+      (if (re-search-forward "^#\\+filetags:.*$" nil t)
+          (replace-match line t t)
+        (goto-char (point-min))
+        (if (re-search-forward "^#\\+title:.*$" nil t)
+            (progn (end-of-line) (insert "\n" line))
+          (goto-char (point-min))
+          (insert line "\n"))))))
 
 (defun mcp-server-emacs-tools-org-roam-capture--template (args)
   "Run a roam capture with a user template."
