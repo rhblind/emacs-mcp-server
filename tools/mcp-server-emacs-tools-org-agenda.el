@@ -69,7 +69,7 @@
  (make-mcp-server-tool
   :name "org-agenda"
   :title "Org Agenda View"
-  :description "Return agenda/TODO view as structured data.  Views: day, week, todo, tags, search.  tags/search require `match'."
+  :description "Return agenda/TODO view as structured data.  Views: day, week, todo, tags, search.  tags/search require `match'.  When `mcp-server-emacs-tools-org-auto-id' is non-nil (default), matched headings that lack an ID are assigned one so later calls can reference them; set the defcustom to nil to disable that side effect."
   :input-schema '((type . "object")
                   (properties . ((view . ((type . "string")
                                           (enum . ("day" "week" "todo" "tags" "search"))))
@@ -78,7 +78,7 @@
                                            (items . ((type . "string")))))))
                   (required . []))
   :function #'mcp-server-emacs-tools-org-agenda--handler
-  :annotations '((readOnlyHint . t)
+  :annotations '((readOnlyHint . :false)
                  (destructiveHint . :false)
                  (idempotentHint . t)
                  (openWorldHint . :false))))

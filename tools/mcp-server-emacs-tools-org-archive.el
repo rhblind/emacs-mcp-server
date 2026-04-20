@@ -17,7 +17,11 @@
   (condition-case err
       (let* ((marker (mcp-server-emacs-tools-org-common--resolve-node args))
              (override (alist-get 'target args))
-             (id (alist-get 'id args))
+             ;; Resolve an ID from the marker BEFORE archiving so the
+             ;; response carries it even when the caller used
+             ;; file+outline_path.  Promotion must happen before the
+             ;; subtree moves so the ID property travels with the node.
+             (id (mcp-server-emacs-tools-org-common--promote-to-id marker))
              (location nil))
         (with-current-buffer (marker-buffer marker)
           (save-excursion

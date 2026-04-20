@@ -73,7 +73,7 @@ SCOPE is a string; FILES and DIRECTORY are optional supporting args."
   :title "Search Org Headings"
   :description
   (mcp-server-emacs-tools-org-common--augment-description
-   "Search TODOs, agenda items, and headings across org files using org's native match syntax (e.g. \"+work-home/!TODO\").  Returns summaries without bodies; use org-get-node to fetch body content."
+   "Search TODOs, agenda items, and headings across org files using org's native match syntax (e.g. \"+work-home/!TODO\").  Returns summaries without bodies; use org-get-node to fetch body content.  When `mcp-server-emacs-tools-org-auto-id' is non-nil (default), matched headings that lack an ID are assigned one so later calls can reference them; set the defcustom to nil to disable that side effect."
    'roam-hint)
   :input-schema '((type . "object")
                   (properties . ((match . ((type . "string")
@@ -86,7 +86,7 @@ SCOPE is a string; FILES and DIRECTORY are optional supporting args."
                                  (limit . ((type . "integer")))))
                   (required . ["match"]))
   :function #'mcp-server-emacs-tools-org-search--handler
-  :annotations '((readOnlyHint . t)
+  :annotations '((readOnlyHint . :false)
                  (destructiveHint . :false)
                  (idempotentHint . t)
                  (openWorldHint . :false))))

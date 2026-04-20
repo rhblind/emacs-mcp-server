@@ -59,5 +59,22 @@
          (result (let ((json-object-type 'alist)) (json-read-from-string json))))
     (should (alist-get 'error result))))
 
+(ert-deftest mcp-test-org-clock-in-by-olp-returns-resolved-id ()
+  "clock in via file+outline_path populates `clocked_id' with the resolved ID.
+Regression test: previously `clocked_id' echoed `(alist-get 'id args)'
+which was nil when the caller used `file'+`outline_path'."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    ;; `** Implementation' has no pre-existing ID; auto-id promotes it.
+    (let* ((mcp-server-emacs-tools-org-auto-id t)
+           (json (mcp-server-emacs-tools-org-clock--handler
+                  `((action . "in")
+                    (file . ,path)
+                    (outline_path . ["Project Alpha" "Implementation"]))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should (equal (alist-get 'action result) "in"))
+      (should (stringp (alist-get 'clocked_id result)))
+      (should (> (length (alist-get 'clocked_id result)) 0)))
+    (mcp-server-emacs-tools-org-clock--handler '((action . "cancel")))))
+
 (provide 'test-mcp-org-clock)
 ;;; test-mcp-org-clock.el ends here

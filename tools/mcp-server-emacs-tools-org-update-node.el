@@ -9,7 +9,6 @@
 (require 'mcp-server-tools)
 (require 'mcp-server-emacs-tools-org-common)
 (require 'org)
-(require 'org-element)
 (require 'json)
 
 (defun mcp-server-emacs-tools-org-update-node--apply-body (new-body)

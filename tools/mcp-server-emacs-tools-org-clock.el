@@ -18,19 +18,22 @@
       (let ((action (or (alist-get 'action args) (error "`action' is required"))))
         (pcase action
           ("in"
-           (let* ((marker (mcp-server-emacs-tools-org-common--resolve-node args)))
+           (let* ((marker (mcp-server-emacs-tools-org-common--resolve-node args))
+                  ;; Resolve an ID from the marker so `clocked_id' is
+                  ;; populated even when the caller used file+outline_path.
+                  ;; Respects `mcp-server-emacs-tools-org-auto-id'.
+                  (id (mcp-server-emacs-tools-org-common--promote-to-id marker)))
              (with-current-buffer (marker-buffer marker)
                (save-excursion
                  (goto-char marker)
                  (org-clock-in)
                  (when mcp-server-emacs-tools-org-auto-save (save-buffer))))
-             (let* ((id (alist-get 'id args))
-                    (title (and (markerp marker)
-                                (with-current-buffer (marker-buffer marker)
-                                  (save-excursion
-                                    (goto-char marker)
-                                    (when (org-at-heading-p)
-                                      (org-get-heading t t t t)))))))
+             (let ((title (and (markerp marker)
+                               (with-current-buffer (marker-buffer marker)
+                                 (save-excursion
+                                   (goto-char marker)
+                                   (when (org-at-heading-p)
+                                     (org-get-heading t t t t)))))))
                (json-encode `((action . "in")
                               (clocked_id . ,id)
                               (clocked_title . ,title))))))

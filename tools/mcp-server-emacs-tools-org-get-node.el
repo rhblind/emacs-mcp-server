@@ -56,7 +56,7 @@
  (make-mcp-server-tool
   :name "org-get-node"
   :title "Get Org Node"
-  :description "Fetch full content of an org heading or file.  Provide either `id' (preferred), or `file' plus optional `outline_path'.  File alone returns that file's pre-heading content."
+  :description "Fetch full content of an org heading or file.  Provide either `id' (preferred), or `file' plus optional `outline_path'.  File alone returns that file's pre-heading content.  When `mcp-server-emacs-tools-org-auto-id' is non-nil (default), a previously un-IDed heading is assigned an ID so later calls can reference it; set the defcustom to nil to disable that side effect."
   :input-schema '((type . "object")
                   (properties . ((id . ((type . "string")
                                         (description . "Org ID of the node (preferred)")))
@@ -71,7 +71,7 @@
                                                       (description . "Return child headings (default false)")))))
                   (required . []))
   :function #'mcp-server-emacs-tools-org-get-node--handler
-  :annotations '((readOnlyHint . t)
+  :annotations '((readOnlyHint . :false)
                  (destructiveHint . :false)
                  (idempotentHint . t)
                  (openWorldHint . :false))))

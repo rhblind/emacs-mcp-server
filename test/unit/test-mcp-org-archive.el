@@ -57,5 +57,19 @@
            (result (let ((json-object-type 'alist)) (json-read-from-string json))))
       (should (alist-get 'error result)))))
 
+(ert-deftest mcp-test-org-archive-by-olp-returns-resolved-id ()
+  "archive via file+outline_path populates `archived_id'.
+Regression test: previously `archived_id' echoed `(alist-get 'id args)'
+which was nil when the caller used `file'+`outline_path'."
+  (mcp-test-with-org-fixture "sample-agenda.org" path
+    (let* ((org-archive-location (concat path "_archive::* Archived"))
+           (mcp-server-emacs-tools-org-auto-id t)
+           (json (mcp-server-emacs-tools-org-archive--handler
+                  `((file . ,path)
+                    (outline_path . ["Buy groceries"]))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should (stringp (alist-get 'archived_id result)))
+      (should (> (length (alist-get 'archived_id result)) 0)))))
+
 (provide 'test-mcp-org-archive)
 ;;; test-mcp-org-archive.el ends here
