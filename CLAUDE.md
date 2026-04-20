@@ -268,14 +268,38 @@ The server supports multiple socket naming strategies via `mcp-server-socket-nam
 
 The server exposes the following tools:
 
+**Core tools:**
 - `eval-elisp` - Execute arbitrary Elisp expressions safely
 - `get-diagnostics` - Get flycheck/flymake diagnostics from project buffers
 
+**Org-mode tools (always available):**
+- `org-agenda` - Return agenda/TODO view as structured data
+- `org-search` - Search headings using org's native match syntax
+- `org-get-node` - Fetch a heading or file's content
+- `org-list-templates` - List user's capture templates
+- `org-list-tags` - List tags with usage counts
+- `org-capture` - Create a new entry (template or direct mode)
+- `org-update-node` - Update fields on an existing heading
+- `org-refile` - Move a heading under another
+- `org-archive` - Archive a heading
+- `org-clock` - Clock in/out/cancel
+
+**Org-roam tools (register only if `org-roam` is installed):**
+- `org-roam-search` - Find roam nodes by title/alias/tag/ref
+- `org-roam-get-node` - Fetch a roam node with backlinks
+- `org-roam-capture` - Create a roam node
+
 Tools can be selectively enabled via `mcp-server-emacs-tools-enabled`:
 ```elisp
-(setq mcp-server-emacs-tools-enabled 'all)              ; All tools (default)
-(setq mcp-server-emacs-tools-enabled '(get-diagnostics)) ; Only diagnostics
+(setq mcp-server-emacs-tools-enabled 'all)                     ; All tools (default)
+(setq mcp-server-emacs-tools-enabled '(org-agenda org-search)) ; Read-only subset
 ```
+
+**Org tool configuration:**
+- `mcp-server-emacs-tools-org-auto-save` (default `t`) - save buffers after write operations
+- `mcp-server-emacs-tools-org-auto-id` (default `t`) - assign IDs to nodes returned by read tools
+- `mcp-server-emacs-tools-org-allowed-roots` (default derived from `org-directory`/`org-agenda-files`) - paths outside these roots are rejected
+- `mcp-server-emacs-tools-org-max-body-bytes` (default `100000`) - truncate large bodies
 
 ## Security Model
 

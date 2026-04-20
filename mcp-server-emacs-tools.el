@@ -25,8 +25,22 @@ names (symbols) to enable selectively.
 Available tools:
 - `eval-elisp' - Execute arbitrary Elisp expressions
 - `get-diagnostics' - Get flycheck/flymake diagnostics
+- `org-agenda' - Agenda/TODO views
+- `org-search' - Search org headings
+- `org-get-node' - Fetch heading or file contents
+- `org-list-templates' - List capture templates
+- `org-list-tags' - List tags with usage counts
+- `org-capture' - Create a new org entry
+- `org-update-node' - Modify an org heading
+- `org-refile' - Move a heading
+- `org-archive' - Archive a heading
+- `org-clock' - Clock in/out/cancel
+- `org-roam-search' - Search org-roam nodes (if installed)
+- `org-roam-get-node' - Fetch roam node with backlinks (if installed)
+- `org-roam-capture' - Create roam node (if installed)
 
-Example: \\='(get-diagnostics) to enable only diagnostics.
+Example: \\='(get-diagnostics org-agenda org-search) to enable only
+a subset.
 
 Changes take effect immediately - disabled tools are hidden from
 LLM clients and cannot be called."
@@ -36,7 +50,20 @@ LLM clients and cannot be called."
 
 (defconst mcp-server-emacs-tools--available
   '((eval-elisp . mcp-server-emacs-tools-eval-elisp)
-    (get-diagnostics . mcp-server-emacs-tools-diagnostics))
+    (get-diagnostics . mcp-server-emacs-tools-diagnostics)
+    (org-agenda . mcp-server-emacs-tools-org-agenda)
+    (org-search . mcp-server-emacs-tools-org-search)
+    (org-get-node . mcp-server-emacs-tools-org-get-node)
+    (org-list-templates . mcp-server-emacs-tools-org-list-templates)
+    (org-list-tags . mcp-server-emacs-tools-org-list-tags)
+    (org-capture . mcp-server-emacs-tools-org-capture)
+    (org-update-node . mcp-server-emacs-tools-org-update-node)
+    (org-refile . mcp-server-emacs-tools-org-refile)
+    (org-archive . mcp-server-emacs-tools-org-archive)
+    (org-clock . mcp-server-emacs-tools-org-clock)
+    (org-roam-search . mcp-server-emacs-tools-org-roam-search)
+    (org-roam-get-node . mcp-server-emacs-tools-org-roam-get-node)
+    (org-roam-capture . mcp-server-emacs-tools-org-roam-capture))
   "Alist mapping tool names (symbols) to their feature names.")
 
 ;; Add tools directory to load path

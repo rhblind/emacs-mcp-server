@@ -1,3 +1,6 @@
 *.html
 references/
+
+# Test-only ELPA cache for optional deps (org-roam on Emacs 29+)
+test/.elpa/
 docs/superpowers/
