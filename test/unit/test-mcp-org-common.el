@@ -188,5 +188,33 @@
                     'roam-hint)
                    "Search tasks."))))
 
+(ert-deftest mcp-test-org-common-truncate-to-bytes-ascii ()
+  "Byte truncation of pure ASCII matches character truncation."
+  (should (equal (mcp-server-emacs-tools-org-common--truncate-to-bytes
+                  "hello world" 5)
+                 "hello"))
+  ;; No truncation when already within the limit.
+  (should (equal (mcp-server-emacs-tools-org-common--truncate-to-bytes
+                  "abc" 100)
+                 "abc")))
+
+(ert-deftest mcp-test-org-common-truncate-to-bytes-multibyte ()
+  "Byte truncation respects multibyte boundaries.
+Regression test: previous `substring' on character length could produce
+a result whose byte count exceeded the limit, or split a codepoint.
+The helper must never leave the total byte length above LIMIT, and
+must never split a multibyte character."
+  ;; Each `é' is 2 bytes in UTF-8; `aéé' is 5 bytes.
+  (let ((s "aéé"))
+    (should (= (string-bytes s) 5))
+    (let ((trunc (mcp-server-emacs-tools-org-common--truncate-to-bytes s 3)))
+      ;; 3 bytes cannot fit the full `aéé', so we expect `aé' (3 bytes)
+      ;; or `a' (1 byte), but not a half-codepoint.
+      (should (<= (string-bytes trunc) 3))
+      (should (or (equal trunc "aé") (equal trunc "a")))))
+  ;; Limit 0 returns empty string.
+  (should (equal (mcp-server-emacs-tools-org-common--truncate-to-bytes "anything" 0)
+                 "")))
+
 (provide 'test-mcp-org-common)
 ;;; test-mcp-org-common.el ends here

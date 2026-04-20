@@ -2,6 +2,7 @@
 (require 'ert)
 (require 'test-helpers)
 (require 'json)
+(require 'seq)
 
 (let* ((this-file (or load-file-name buffer-file-name))
        (tools-dir (and this-file

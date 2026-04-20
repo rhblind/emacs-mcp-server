@@ -131,14 +131,29 @@ cannot be located or the file is not allowed."
        (setq path (append path (list (org-get-heading t t t t)))))
      path)))
 
+(defun mcp-server-emacs-tools-org-common--truncate-to-bytes (str limit)
+  "Return a prefix of STR whose byte length is at most LIMIT.
+Truncation happens at a character boundary, never mid-codepoint.  STR
+is returned unchanged when its byte length is already within LIMIT."
+  (if (<= (string-bytes str) limit)
+      str
+    (let ((end (min (length str) limit)))
+      (while (and (> end 0)
+                  (> (string-bytes (substring str 0 end)) limit))
+        (setq end (1- end)))
+      (substring str 0 end))))
+
 (defun mcp-server-emacs-tools-org-common--extract-body-at-point ()
   "Extract the body text relevant to point.
 On a heading, returns text between the heading's `:contents-begin' and
-`:contents-end' (i.e. heading body plus children).  Off a heading
-(file-level node), returns pre-heading content: everything from
-`point-min' to the first heading, or the whole file if there are no
-headings.  Returns a cons cell (BODY . TRUNCATED) where BODY is the
-possibly truncated string and TRUNCATED is t when the value exceeds
+`:contents-end' as reported by `org-element'.  Note that `:contents-end'
+ends before the first child heading, so the result includes the
+heading's own body (property drawer, planning lines, paragraphs) but
+NOT child subtrees.  Off a heading (file-level node), returns
+pre-heading content: everything from `point-min' to the first heading,
+or the whole file if there are no headings.  Returns a cons cell
+\(BODY . TRUNCATED) where BODY is the possibly byte-truncated string and
+TRUNCATED is t when the raw value exceeds
 `mcp-server-emacs-tools-org-max-body-bytes'."
   (let* ((limit mcp-server-emacs-tools-org-max-body-bytes)
          (raw
@@ -158,16 +173,20 @@ possibly truncated string and TRUNCATED is t when the value exceeds
                              (match-beginning 0)
                            (point-max)))))
               (buffer-substring-no-properties begin end)))))
-         (truncated (> (length raw) limit)))
-    (cons (if truncated (substring raw 0 limit) raw) truncated)))
+         (truncated (> (string-bytes raw) limit)))
+    (cons (if truncated
+              (mcp-server-emacs-tools-org-common--truncate-to-bytes raw limit)
+            raw)
+          truncated)))
 
 (cl-defun mcp-server-emacs-tools-org-common--node-to-alist
     (marker &key (include-body t))
   "Serialize node at MARKER to an alist.
-When INCLUDE-BODY is non-nil, include the node body, possibly truncated
-to `mcp-server-emacs-tools-org-max-body-bytes'.  Supports both
-heading-based markers (extracts subtree body) and file-level markers
-(extracts pre-heading content)."
+When INCLUDE-BODY is non-nil, include the node body, possibly
+byte-truncated to `mcp-server-emacs-tools-org-max-body-bytes'.
+Supports both heading-based markers (extracts the heading's own body
+up to the first child heading) and file-level markers (extracts
+pre-heading content)."
   (with-current-buffer (marker-buffer marker)
     (org-with-wide-buffer
      (goto-char marker)
