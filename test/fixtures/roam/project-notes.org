@@ -1,0 +1,7 @@
+:PROPERTIES:
+:ID:       roam-project-notes-0001
+:END:
+#+title: Project Notes
+#+filetags: :project:
+
+Notes referencing [[id:roam-concept-a-0001][Concept A]].

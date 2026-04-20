@@ -1,0 +1,9 @@
+:PROPERTIES:
+:ID:       roam-concept-b-0001
+:ROAM_ALIASES: "B-topic" "Beta"
+:ROAM_REFS: https://example.com/b
+:END:
+#+title: Concept B
+#+filetags: :example:
+
+Details about Concept B.

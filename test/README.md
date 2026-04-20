@@ -173,3 +173,29 @@ Integration tests use a dedicated socket directory (`/tmp/emacs-mcp-server-test`
 3. **Test Error Conditions** - Include tests for error cases
 4. **Clear Test Names** - Use descriptive names that explain what is being tested
 5. **MCP Spec Compliance** - JSON messages must be single-line (no embedded newlines)
+
+## Org Tools Tests
+
+Unit tests for the org-mode tools live in `test/unit/`:
+
+- `test-mcp-org-common.el` - node resolution, serialization, path validation, helper macros.
+- `test-mcp-org-helpers.el` - the `mcp-test-with-org-fixture` macro itself.
+- `test-mcp-org-get-node.el`, `test-mcp-org-search.el`, `test-mcp-org-agenda.el`, `test-mcp-org-list-templates.el`, `test-mcp-org-list-tags.el` - read tools.
+- `test-mcp-org-capture.el`, `test-mcp-org-update-node.el`, `test-mcp-org-refile.el`, `test-mcp-org-archive.el`, `test-mcp-org-clock.el` - write tools.
+- `test-mcp-org-roam-search.el`, `test-mcp-org-roam-get-node.el`, `test-mcp-org-roam-capture.el` - org-roam tools; skipped gracefully when `org-roam` is not installed.
+- `test-mcp-org-registry.el` - verifies org tools appear in the registry and respect the `mcp-server-emacs-tools-enabled` filter.
+
+Fixtures live in `test/fixtures/org/`:
+
+- `sample-notes.org` - for outline-path, property, and body tests.
+- `sample-agenda.org` - TODO/NEXT/DONE states, tags, schedules, deadlines.
+
+Tests use the `mcp-test-with-org-fixture` macro (in `test/fixtures/test-helpers.el`) which copies a fixture to a temp file, isolates `org-id-locations`, and scopes `mcp-server-emacs-tools-org-allowed-roots` per-test.
+
+Run any single suite with:
+
+```bash
+emacs -batch -L . -L test/fixtures -L test/unit -L tools \
+  -l ert -l test/unit/test-mcp-org-<suite>.el \
+  -f ert-run-tests-batch-and-exit
+```

@@ -1,0 +1,10 @@
+:PROPERTIES:
+:ID:       roam-concept-a-0001
+:ROAM_REFS: https://example.com/a
+:END:
+#+title: Concept A
+#+filetags: :example:
+
+Introduction to Concept A.
+
+This concept relates to [[id:roam-concept-b-0001][Concept B]].

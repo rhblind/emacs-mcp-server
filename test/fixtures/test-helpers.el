@@ -207,5 +207,81 @@
   (when (require 'undercover nil t)
     (undercover "*.el")))
 
+;;; Org Fixture Helpers
+
+(require 'org-id)
+
+(defun mcp-test-org-fixtures-dir ()
+  "Return absolute path to the org fixtures directory."
+  (let* ((this-file (or load-file-name buffer-file-name
+                        (locate-library "test-helpers"))))
+    (expand-file-name "org"
+                      (file-name-directory this-file))))
+
+(defmacro mcp-test-with-org-fixture (fixture-name path-var &rest body)
+  "Copy org FIXTURE-NAME to a temp path bound to PATH-VAR, run BODY.
+Isolates org-id state so tests never touch the user's real
+`org-id-locations-file'.  Also scopes `mcp-server-emacs-tools-org-allowed-roots'
+to the temp directory so path validation accepts the fixture file."
+  (declare (indent 2))
+  `(let* ((src (expand-file-name ,fixture-name (mcp-test-org-fixtures-dir)))
+          (tmp-dir (make-temp-file "mcp-test-org-" t))
+          (,path-var (expand-file-name ,fixture-name tmp-dir))
+          (org-id-locations (make-hash-table :test 'equal))
+          (org-id-files nil)
+          (org-id-track-globally t)
+          (org-id-locations-file (expand-file-name ".org-id-locations" tmp-dir))
+          (mcp-server-emacs-tools-org-allowed-roots (list tmp-dir)))
+     (unwind-protect
+         (progn
+           (copy-file src ,path-var t)
+           (org-id-update-id-locations (list ,path-var))
+           ,@body)
+       (when (file-exists-p tmp-dir)
+         (delete-directory tmp-dir t)))))
+
+;;; Roam Fixture Helpers
+
+(defun mcp-test-roam-fixtures-dir ()
+  "Return absolute path to the roam fixtures directory."
+  (let* ((this-file (or load-file-name buffer-file-name
+                        (locate-library "test-helpers"))))
+    (expand-file-name "roam"
+                      (file-name-directory this-file))))
+
+(defmacro mcp-test-with-roam-fixture (dir-var &rest body)
+  "Set up a temporary org-roam DB from the roam fixture directory.
+DIR-VAR is bound to the temp directory inside BODY.  Isolates roam
+state (directory, DB location, capture templates).  Caller is
+responsible for skipping this macro when Emacs major version < 29 or
+when `org-roam' is not available.
+
+Only usable when `org-roam' has been `require'd."
+  (declare (indent 1))
+  `(let* ((src-dir (mcp-test-roam-fixtures-dir))
+          (,dir-var (make-temp-file "mcp-test-roam-" t))
+          (org-roam-directory ,dir-var)
+          (org-roam-db-location (expand-file-name "roam.db" ,dir-var))
+          (org-id-locations (make-hash-table :test 'equal))
+          (org-id-files nil)
+          (org-id-track-globally t)
+          (org-id-locations-file (expand-file-name ".org-id-locations" ,dir-var))
+          (org-roam-capture-templates
+           '(("d" "default" plain "%?"
+              :target (file+head "${slug}.org" "#+title: ${title}\n")
+              :immediate-finish t :unnarrowed t)))
+          (mcp-server-emacs-tools-org-allowed-roots (list ,dir-var)))
+     (unwind-protect
+         (progn
+           ;; Copy all fixture files into the temp directory.
+           (dolist (f (directory-files src-dir t "\\.org$"))
+             (copy-file f (expand-file-name (file-name-nondirectory f) ,dir-var) t))
+           ;; Build the roam DB from scratch.
+           (when (fboundp 'org-roam-db-sync)
+             (org-roam-db-sync))
+           ,@body)
+       (when (file-exists-p ,dir-var)
+         (delete-directory ,dir-var t)))))
+
 (provide 'test-helpers)
 ;;; test-helpers.el ends here
