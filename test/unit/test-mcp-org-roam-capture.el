@@ -116,5 +116,21 @@ Regression test: the previous title-lookup could return the wrong node."
       (should (stringp new-id))
       (should-not (equal new-id pre-existing-id)))))
 
+(ert-deftest mcp-test-org-roam-capture-set-filetags-case-insensitive ()
+  "set-filetags replaces uppercase #+FILETAGS: and finds #+TITLE:."
+  ;; Replace existing #+FILETAGS: (uppercase).
+  (with-temp-buffer
+    (insert "#+TITLE: My Note\n#+FILETAGS: :old:\n")
+    (mcp-server-emacs-tools-org-roam-capture--set-filetags '("new"))
+    (let ((s (buffer-string)))
+      (should (string-match-p "^#\\+filetags: :new:" s))
+      (should-not (string-match-p ":old:" s))))
+  ;; Insert after #+TITLE: (uppercase) when no filetags line present.
+  (with-temp-buffer
+    (insert "#+TITLE: Another Note\n")
+    (mcp-server-emacs-tools-org-roam-capture--set-filetags '("tag1"))
+    (let ((s (buffer-string)))
+      (should (string-match-p "^#\\+filetags: :tag1:" s)))))
+
 (provide 'test-mcp-org-roam-capture)
 ;;; test-mcp-org-roam-capture.el ends here

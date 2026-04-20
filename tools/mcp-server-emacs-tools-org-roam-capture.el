@@ -83,12 +83,14 @@ unset or the ID can't be read from the captured buffer."
 (defun mcp-server-emacs-tools-org-roam-capture--set-filetags (tags)
   "Set `#+filetags:' to TAGS (a list of strings) in the current buffer.
 Replaces an existing `#+filetags:' line or inserts one after the
-`#+title:' line (or at `point-min' if no title line is present)."
+`#+title:' line (or at `point-min' if no title line is present).
+Searches are case-insensitive to match org's keyword rules."
   (save-excursion
     (goto-char (point-min))
     (let ((line (concat "#+filetags: :"
                         (mapconcat #'identity tags ":")
-                        ":")))
+                        ":"))
+          (case-fold-search t))
       (if (re-search-forward "^#\\+filetags:.*$" nil t)
           (replace-match line t t)
         (goto-char (point-min))
