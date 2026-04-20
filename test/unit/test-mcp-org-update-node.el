@@ -79,6 +79,35 @@ truthiness.  Explicit empty-list input must now clear tags."
         (should-not (string-match-p ":work:" line))
         (should-not (string-match-p ":release:" line))))))
 
+(ert-deftest mcp-test-org-update-node-rejects-file-level-marker ()
+  "update-node errors clearly when the node resolves to a file-level marker.
+Regression test: `file' without `outline_path' would resolve to
+point-min, which is not a heading.  update-node now surfaces an
+explicit error rather than falling into undefined `org-edit-headline'
+behavior."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    (let* ((json (mcp-server-emacs-tools-org-update-node--handler
+                  `((file . ,path)
+                    (title . "Should not rename"))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should (alist-get 'error result)))))
+
+(ert-deftest mcp-test-org-update-node-ignores-file-when-id-present ()
+  "When both `id' and a disallowed `file' are given, `file' is not validated.
+Regression test: `--resolve-node' uses the id's own file when id is
+present, so a client-provided `file' should not trigger spurious
+`outside allowed roots' errors."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    (let* ((json (mcp-server-emacs-tools-org-update-node--handler
+                  '((id . "alpha-design-0001")
+                    (file . "/definitely/not/an/allowed/path.org")
+                    (title . "Renamed via ID"))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should-not (alist-get 'error result))
+      (with-temp-buffer
+        (insert-file-contents path)
+        (should (string-match-p "Renamed via ID" (buffer-string)))))))
+
 (ert-deftest mcp-test-org-update-node-registered ()
   "Tool is registered."
   (should (mcp-server-tools-exists-p "org-update-node")))

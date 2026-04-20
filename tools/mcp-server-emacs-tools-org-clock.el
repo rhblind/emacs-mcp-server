@@ -18,7 +18,7 @@
       (let ((action (or (alist-get 'action args) (error "`action' is required"))))
         (pcase action
           ("in"
-           (let* ((marker (mcp-server-emacs-tools-org-common--resolve-node args))
+           (let* ((marker (mcp-server-emacs-tools-org-common--resolve-heading-node args))
                   ;; Resolve an ID from the marker so `clocked_id' is
                   ;; populated even when the caller used file+outline_path.
                   ;; Respects `mcp-server-emacs-tools-org-auto-id'.

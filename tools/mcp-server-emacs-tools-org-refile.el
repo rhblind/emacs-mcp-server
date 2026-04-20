@@ -17,7 +17,12 @@
   (condition-case err
       (let* ((source (or (alist-get 'source args) (error "`source' is required")))
              (target (or (alist-get 'target args) (error "`target' is required")))
-             (source-marker (mcp-server-emacs-tools-org-common--resolve-node source))
+             ;; Both markers must be headings; file-level markers are
+             ;; not valid refile sources or targets.  The heading-only
+             ;; resolver surfaces a clean error instead of letting
+             ;; `org-refile' fail obscurely.
+             (source-marker (mcp-server-emacs-tools-org-common--resolve-heading-node
+                             source))
              ;; Ensure the source has a stable ID before refiling so we can
              ;; always locate it afterwards.  This respects
              ;; `mcp-server-emacs-tools-org-auto-id'; when that is nil and
@@ -25,13 +30,16 @@
              ;; outline path in the response.
              (source-id (mcp-server-emacs-tools-org-common--promote-to-id
                          source-marker))
-             (target-marker (mcp-server-emacs-tools-org-common--resolve-node target))
+             (target-marker (mcp-server-emacs-tools-org-common--resolve-heading-node
+                             target))
              (target-buf (marker-buffer target-marker))
              (target-file (buffer-file-name target-buf))
              target-heading)
         (with-current-buffer target-buf
           (goto-char target-marker)
-          (setq target-heading (when (org-at-heading-p) (org-get-heading t t t t))))
+          (setq target-heading (org-get-heading t t t t)))
+        (unless (and (stringp target-heading) (> (length target-heading) 0))
+          (error "Refile target heading is empty"))
         (with-current-buffer (marker-buffer source-marker)
           (save-excursion
             (goto-char source-marker)

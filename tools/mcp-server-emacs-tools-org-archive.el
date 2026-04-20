@@ -15,7 +15,7 @@
 (defun mcp-server-emacs-tools-org-archive--handler (args)
   "Handle org-archive tool call with ARGS."
   (condition-case err
-      (let* ((marker (mcp-server-emacs-tools-org-common--resolve-node args))
+      (let* ((marker (mcp-server-emacs-tools-org-common--resolve-heading-node args))
              (override (alist-get 'target args))
              ;; Resolve an ID from the marker BEFORE archiving so the
              ;; response carries it even when the caller used

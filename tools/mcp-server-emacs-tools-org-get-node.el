@@ -72,7 +72,7 @@
                   (required . []))
   :function #'mcp-server-emacs-tools-org-get-node--handler
   :annotations '((readOnlyHint . :false)
-                 (destructiveHint . :false)
+                 (destructiveHint . t)
                  (idempotentHint . t)
                  (openWorldHint . :false))))
 

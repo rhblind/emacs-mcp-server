@@ -32,9 +32,19 @@ subtree.  Properties and metadata are preserved."
 (defun mcp-server-emacs-tools-org-update-node--handler (args)
   "Handle org-update-node tool call with ARGS."
   (condition-case err
-      (let* ((file (alist-get 'file args))
-             (_ (when file (mcp-server-emacs-tools-org-common--validate-path file)))
-             (marker (mcp-server-emacs-tools-org-common--resolve-node args))
+      (let* ((id (alist-get 'id args))
+             (file (alist-get 'file args))
+             ;; Validate `file' only when it will actually be used to
+             ;; locate the node.  When `id' is present, `--resolve-node'
+             ;; ignores `file' and validates the id's own file; running
+             ;; validation on an unused `file' can surface spurious
+             ;; "outside allowed roots" errors for clients that helpfully
+             ;; include both fields.
+             (_ (when (and file (null id))
+                  (mcp-server-emacs-tools-org-common--validate-path file)))
+             ;; update-node modifies a heading's fields; file-level
+             ;; markers are not valid here.
+             (marker (mcp-server-emacs-tools-org-common--resolve-heading-node args))
              (changed '()))
         (mcp-server-emacs-tools-org-common--with-node marker
           (let* ((title (alist-get 'title args))

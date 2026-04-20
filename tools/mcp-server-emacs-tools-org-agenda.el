@@ -79,7 +79,7 @@
                   (required . []))
   :function #'mcp-server-emacs-tools-org-agenda--handler
   :annotations '((readOnlyHint . :false)
-                 (destructiveHint . :false)
+                 (destructiveHint . t)
                  (idempotentHint . t)
                  (openWorldHint . :false))))
 

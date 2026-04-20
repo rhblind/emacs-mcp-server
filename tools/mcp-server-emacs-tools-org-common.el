@@ -82,14 +82,22 @@ Returns one of:
      (t v))))
 
 (defun mcp-server-emacs-tools-org-common--resolve-node (args)
-  "Resolve ARGS to a marker pointing at an org heading.
-ARGS is an alist that must include either:
-  (id . STRING) - org-id; looked up via `org-id-find'
-  (file . STRING) + (outline_path . VECTOR) - looked up via `org-find-olp'
+  "Resolve ARGS to a marker inside an org buffer.
+ARGS is an alist that must include one of:
+  (id . STRING) - org-id; looked up via `org-id-find'; returns a
+                  marker at the heading that carries that ID.
+  (file . STRING) + (outline_path . VECTOR) - looked up via
+                  `org-find-olp'; returns a marker at the specified
+                  heading.
+  (file . STRING) without `outline_path' - returns a file-level
+                  marker at `point-min' (used by `org-get-node' when
+                  the caller wants pre-heading file content).
 The resolved file is always validated against
 `mcp-server-emacs-tools-org-allowed-roots'; IDs that resolve to files
 outside the allowed roots are rejected.  Signals an error if the node
-cannot be located or the file is not allowed."
+cannot be located or the file is not allowed.  Callers that require a
+heading (not a file-level marker) should use
+`mcp-server-emacs-tools-org-common--resolve-heading-node' instead."
   (let ((id (alist-get 'id args))
         (file (alist-get 'file args))
         (olp (alist-get 'outline_path args)))
@@ -119,6 +127,23 @@ cannot be located or the file is not allowed."
             (point-marker)))))
      (t
       (error "resolve-node requires `id' or `file' (+ optional `outline_path')")))))
+
+(defun mcp-server-emacs-tools-org-common--resolve-heading-node (args)
+  "Like `--resolve-node' but require the caller to identify a heading.
+Rejects bare `file' calls (without `id' or `outline_path') because
+those are API-level file-level references that are not valid for
+heading-only tools.  Also asserts that the resolved marker sits on a
+heading as a defense in depth.  Use this in write tools that can only
+operate on headings (update-node, refile, archive, clock)."
+  (unless (or (alist-get 'id args) (alist-get 'outline_path args))
+    (error "This tool requires `id' or `file'+`outline_path'; bare `file' is not accepted"))
+  (let ((marker (mcp-server-emacs-tools-org-common--resolve-node args)))
+    (with-current-buffer (marker-buffer marker)
+      (save-excursion
+        (goto-char marker)
+        (unless (org-at-heading-p)
+          (error "Resolved position is not a heading"))))
+    marker))
 
 (defun mcp-server-emacs-tools-org-common--compute-outline-path ()
   "Return the outline path at point as a list of strings."

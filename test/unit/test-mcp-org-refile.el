@@ -52,5 +52,17 @@
         ;; Find it after "Project Beta" heading.
         (should (string-match-p "\\*+ Project Beta[^*]*\\*+ Implementation" buf))))))
 
+(ert-deftest mcp-test-org-refile-rejects-file-level-target ()
+  "refile errors when target is specified as a file with no outline_path.
+Regression test: previously `target-heading' could be nil and the
+internal `org-refile' call would fail with an obscure error.  Refile
+now surfaces a clean error from the heading-only resolver."
+  (mcp-test-with-org-fixture "sample-notes.org" path
+    (let* ((json (mcp-server-emacs-tools-org-refile--handler
+                  `((source . ((id . "alpha-design-0001")))
+                    (target . ((file . ,path))))))
+           (result (let ((json-object-type 'alist)) (json-read-from-string json))))
+      (should (alist-get 'error result)))))
+
 (provide 'test-mcp-org-refile)
 ;;; test-mcp-org-refile.el ends here

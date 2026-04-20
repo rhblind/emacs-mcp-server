@@ -87,7 +87,7 @@ SCOPE is a string; FILES and DIRECTORY are optional supporting args."
                   (required . ["match"]))
   :function #'mcp-server-emacs-tools-org-search--handler
   :annotations '((readOnlyHint . :false)
-                 (destructiveHint . :false)
+                 (destructiveHint . t)
                  (idempotentHint . t)
                  (openWorldHint . :false))))
 
