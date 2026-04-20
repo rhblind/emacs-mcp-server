@@ -170,15 +170,16 @@ is returned unchanged when its byte length is already within LIMIT."
 
 (defun mcp-server-emacs-tools-org-common--extract-body-at-point ()
   "Extract the body text relevant to point.
-On a heading, returns text between the heading's `:contents-begin' and
-`:contents-end' as reported by `org-element'.  Note that `:contents-end'
-ends before the first child heading, so the result includes the
-heading's own body (property drawer, planning lines, paragraphs) but
-NOT child subtrees.  Off a heading (file-level node), returns
-pre-heading content: everything from `point-min' to the first heading,
-or the whole file if there are no headings.  Returns a cons cell
-\(BODY . TRUNCATED) where BODY is the possibly byte-truncated string and
-TRUNCATED is t when the raw value exceeds
+On a heading, returns text between the headline element's
+`:contents-begin' and `:contents-end' as reported by `org-element'.
+This span starts right after the heading title line (so it includes
+planning lines and the property drawer) and ends at the close of the
+subtree (so it includes child headings and their content).  Sibling
+and parent headings are NOT included.  Off a heading (file-level
+node), returns pre-heading content: everything from `point-min' to
+the first heading, or the whole file if there are no headings.
+Returns a cons cell (BODY . TRUNCATED) where BODY is the possibly
+byte-truncated string and TRUNCATED is t when the raw value exceeds
 `mcp-server-emacs-tools-org-max-body-bytes'."
   (let* ((limit mcp-server-emacs-tools-org-max-body-bytes)
          (raw

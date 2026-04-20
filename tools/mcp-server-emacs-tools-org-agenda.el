@@ -39,7 +39,7 @@
         (puthash state (1+ (gethash state by-state 0)) by-state)))
     `((count . ,(length entries))
       (by_state . ,(let ((acc '()))
-                     (maphash (lambda (k v) (push (cons (intern k) v) acc)) by-state)
+                     (maphash (lambda (k v) (push (cons k v) acc)) by-state)
                      acc)))))
 
 (defun mcp-server-emacs-tools-org-agenda--handler (args)
