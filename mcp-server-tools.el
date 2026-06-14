@@ -210,7 +210,8 @@ Provides basic type checking and required property validation."
 
 (defun mcp-server-tools-call (name arguments)
   "Call tool NAME with ARGUMENTS.
-Returns a list of content items in MCP format.
+Returns a vector of content items in MCP format, or the symbol
+`mcp-deferred' if the tool will send its response asynchronously.
 Respects `mcp-server-tools-filter' - disabled tools cannot be called."
   (let ((tool (mcp-server-tools-get name)))
     (unless tool
@@ -218,10 +219,12 @@ Respects `mcp-server-tools-filter' - disabled tools cannot be called."
     (unless (mcp-server-tools--enabled-p name)
       (error "Tool is disabled: %s" name))
 
-    ;; Execute the tool function with security sandbox
     (condition-case err
         (let ((result (funcall (mcp-server-tool-function tool) arguments)))
-          (mcp-server-tools--format-result result))
+          ;; A deferred tool sends its own response asynchronously.
+          (if (eq result 'mcp-deferred)
+              'mcp-deferred
+            (mcp-server-tools--format-result result)))
       (error
        (vector `((type . "text")
                  (text . ,(format "Tool execution failed: %s" (error-message-string err)))))))))

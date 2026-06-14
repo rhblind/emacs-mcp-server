@@ -77,6 +77,16 @@
 (defvar mcp-server-running nil
   "Whether the MCP server is currently running.")
 
+(defvar mcp-server--current-client-id nil
+  "Client ID of the request currently being handled.
+Dynamically bound around each tool call so that async (deferred)
+tool handlers can capture it for sending a delayed response.")
+
+(defvar mcp-server--current-request-id nil
+  "Request ID of the tool call currently being handled.
+Dynamically bound around each tool call so that async (deferred)
+tool handlers can capture it for sending a delayed response.")
+
 (defcustom mcp-server-debug nil
   "Whether to enable debug logging."
   :type 'boolean
@@ -357,11 +367,19 @@ Uses `catch'/`throw' for early exit after successful response send."
         (arguments (alist-get 'arguments params)))
 
     (condition-case err
-        (let* ((result (mcp-server-tools-call tool-name arguments))
-               ;; Check if this is an error result
-               (is-error-bool (and (> (length result) 0)
+        (let* ((result
+                ;; Bind context vars so deferred tools can capture them.
+                (let ((mcp-server--current-client-id client-id)
+                      (mcp-server--current-request-id id))
+                  (mcp-server-tools-call tool-name arguments)))
+               ;; Check if this is an error result (only for non-deferred).
+               (is-error-bool (and (not (eq result 'mcp-deferred))
+                                   (> (length result) 0)
                                    (listp (aref result 0))
                                    (eq (alist-get 'type (aref result 0)) 'error))))
+          ;; Deferred tool: it will send the response asynchronously.
+          (when (eq result 'mcp-deferred)
+            (throw 'mcp-handled 'deferred))
           (mcp-server--debug "Tool %s - is-error-bool = %S (type: %s)"
                              tool-name is-error-bool (type-of is-error-bool))
           ;; Use direct hash table approach to avoid alist conversion issues
@@ -468,6 +486,44 @@ IS-ERROR-BOOL is a boolean indicating if this is an error."
          (mcp-server--send-response client-id id
                                     `((content . ,content-value)
                                       (isError . ,(if is-error-bool t :false)))))))))
+
+;;; Async (deferred) tool response API
+
+(defun mcp-server-send-tool-result (client-id request-id text)
+  "Send a successful tools/call response to CLIENT-ID for REQUEST-ID.
+TEXT is the plain-text result string returned to the LLM.
+Call this from an async tool handler after the user has provided input."
+  (let ((response-hash (make-hash-table :test 'equal))
+        (result-hash   (make-hash-table :test 'equal))
+        (content-ht    (make-hash-table :test 'equal)))
+    (puthash "type" "text" content-ht)
+    (puthash "text" text content-ht)
+    (puthash "content" (vector content-ht) result-hash)
+    (puthash "isError" :false result-hash)
+    (puthash "jsonrpc" "2.0" response-hash)
+    (puthash "id" request-id response-hash)
+    (puthash "result" result-hash response-hash)
+    (mcp-server-transport-send-raw
+     mcp-server-current-transport client-id
+     (json-serialize response-hash))))
+
+(defun mcp-server-send-tool-error (client-id request-id message)
+  "Send a tools/call error response to CLIENT-ID for REQUEST-ID.
+MESSAGE describes the error returned to the LLM.
+Call this from an async tool handler when the operation fails or is cancelled."
+  (let ((response-hash (make-hash-table :test 'equal))
+        (result-hash   (make-hash-table :test 'equal))
+        (content-ht    (make-hash-table :test 'equal)))
+    (puthash "type" "text" content-ht)
+    (puthash "text" message content-ht)
+    (puthash "content" (vector content-ht) result-hash)
+    (puthash "isError" t result-hash)
+    (puthash "jsonrpc" "2.0" response-hash)
+    (puthash "id" request-id response-hash)
+    (puthash "result" result-hash response-hash)
+    (mcp-server-transport-send-raw
+     mcp-server-current-transport client-id
+     (json-serialize response-hash))))
 
 ;;; Interactive Commands
 
