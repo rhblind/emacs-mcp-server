@@ -33,6 +33,7 @@ test-unit:
 		-l test/unit/test-mcp-org-roam-capture.el \
 		-l test/unit/test-mcp-org-registry.el \
 		-l test/unit/test-mcp-server-deferred.el \
+		-l test/unit/test-mcp-ask-user.el \
 		--eval "(ert-run-tests-batch-and-exit)"
 
 # Run integration tests
@@ -66,6 +67,7 @@ test-verbose:
 		-l test/unit/test-mcp-org-roam-capture.el \
 		-l test/unit/test-mcp-org-registry.el \
 		-l test/unit/test-mcp-server-deferred.el \
+		-l test/unit/test-mcp-ask-user.el \
 		--eval "(let ((ert-batch-backtrace-right-margin 80)) (ert-run-tests-batch-and-exit t))"
 
 # Clean up temporary files
@@ -108,6 +110,7 @@ test-pattern:
 		-l test/unit/test-mcp-org-roam-capture.el \
 		-l test/unit/test-mcp-org-registry.el \
 		-l test/unit/test-mcp-server-deferred.el \
+		-l test/unit/test-mcp-ask-user.el \
 		--eval "(ert-run-tests-batch-and-exit \"$(PATTERN)\")"
 
 # Install test dependencies.
