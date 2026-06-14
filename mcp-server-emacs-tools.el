@@ -38,6 +38,7 @@ Available tools:
 - `org-roam-search' - Search org-roam nodes (if installed)
 - `org-roam-get-node' - Fetch roam node with backlinks (if installed)
 - `org-roam-capture' - Create roam node (if installed)
+- `ask-user' - Present a multiple-choice question to the user
 
 Example: \\='(get-diagnostics org-agenda org-search) to enable only
 a subset.
@@ -63,7 +64,8 @@ LLM clients and cannot be called."
     (org-clock . mcp-server-emacs-tools-org-clock)
     (org-roam-search . mcp-server-emacs-tools-org-roam-search)
     (org-roam-get-node . mcp-server-emacs-tools-org-roam-get-node)
-    (org-roam-capture . mcp-server-emacs-tools-org-roam-capture))
+    (org-roam-capture . mcp-server-emacs-tools-org-roam-capture)
+    (ask-user . mcp-server-emacs-tools-ask-user))
   "Alist mapping tool names (symbols) to their feature names.")
 
 ;; Add tools directory to load path
