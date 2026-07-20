@@ -216,5 +216,66 @@ must never split a multibyte character."
   (should (equal (mcp-server-emacs-tools-org-common--truncate-to-bytes "anything" 0)
                  "")))
 
+;; ─── Temporary buffer ownership tests ───
+
+(ert-deftest mcp-test-org-common-open-file-tracks-new ()
+  "open-file records newly opened buffers for cleanup."
+  (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
+         (buf (mcp-server-emacs-tools-org--open-file tmp-file))
+         (owned mcp-server-emacs-tools-org--owned-buffers))
+    (unwind-protect
+        (should (assoc buf owned))
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file tmp-file))))
+
+(ert-deftest mcp-test-org-common-open-file-reuses-existing ()
+  "open-file does NOT track buffers that were already visiting."
+  (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
+         (existing-buf (find-file-noselect tmp-file)))
+    (unwind-protect
+        (let* ((owned-before (length (or mcp-server-emacs-tools-org--owned-buffers '())))
+               (same-buf (mcp-server-emacs-tools-org--open-file tmp-file))
+               (owned-after (length (or mcp-server-emacs-tools-org--owned-buffers '()))))
+          (should (eq same-buf existing-buf))
+          (should (= owned-before owned-after)))
+      (when (buffer-live-p existing-buf) (kill-buffer existing-buf))
+      (delete-file tmp-file))))
+
+(ert-deftest mcp-test-org-common-cleanup-kills-new-clean-buffer ()
+  "cleanup-buffers kills a newly opened clean buffer."
+  (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
+         (buf (find-file-noselect tmp-file)))
+    (unwind-protect
+        (let ((mcp-server-emacs-tools-org--owned-buffers `((,buf . nil))))
+          (mcp-server-emacs-tools-org--cleanup-buffers)
+          (should-not (buffer-live-p buf)))
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file tmp-file))))
+
+(ert-deftest mcp-test-org-common-cleanup-preserves-modified ()
+  "cleanup-buffers does NOT kill a modified buffer."
+  (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
+         (buf (find-file-noselect tmp-file)))
+    (unwind-protect
+        (progn
+          (with-current-buffer buf
+            (insert "dirty"))
+          (let ((mcp-server-emacs-tools-org--owned-buffers `((,buf . nil))))
+            (mcp-server-emacs-tools-org--cleanup-buffers)
+            (should (buffer-live-p buf))))
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file tmp-file))))
+
+(ert-deftest mcp-test-org-common-cleanup-ignores-unowned ()
+  "cleanup-buffers does not kill buffers it did not open."
+  (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
+         (buf (find-file-noselect tmp-file)))
+    (unwind-protect
+        (progn
+          (mcp-server-emacs-tools-org--cleanup-buffers)
+          (should (buffer-live-p buf)))
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file tmp-file))))
+
 (provide 'test-mcp-org-common)
 ;;; test-mcp-org-common.el ends here

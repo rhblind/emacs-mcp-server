@@ -269,7 +269,7 @@ prompts via org APIs."
          (properties (alist-get 'properties args))
          (scheduled (alist-get 'scheduled args))
          (deadline (alist-get 'deadline args))
-         (buf (find-file-noselect file)))
+         (buf (mcp-server-emacs-tools-org--open-file file)))
     (with-current-buffer buf
       (org-with-wide-buffer
        (let (insert-marker level)

@@ -353,11 +353,12 @@ Uses `catch'/`throw' for early exit after successful response send."
   "Handle tools/call request with ID and PARAMS from CLIENT-ID."
   (mcp-server--debug "Tools call request from %s: %s" client-id params)
 
-  (let ((tool-name (alist-get 'name params))
-        (arguments (alist-get 'arguments params)))
+  (unwind-protect
+      (let ((tool-name (alist-get 'name params))
+            (arguments (alist-get 'arguments params)))
 
-    (condition-case err
-        (let* ((result (mcp-server-tools-call tool-name arguments))
+        (condition-case err
+            (let* ((result (mcp-server-tools-call tool-name arguments))
                ;; Check if this is an error result
                (is-error-bool (and (> (length result) 0)
                                    (listp (aref result 0))
@@ -392,7 +393,10 @@ Uses `catch'/`throw' for early exit after successful response send."
       client-id id
       `((content . (((type . "text")
                      (text . "Tool execution failed"))))
-        (isError . t))))))
+        (isError . t)))))
+    ;; Cleanup: close clean unmodified temporary buffers opened by org tools.
+    (when (bound-and-true-p mcp-server-emacs-tools-org--owned-buffers)
+      (mcp-server-emacs-tools-org--cleanup-buffers))))
 
 (defun mcp-server--send-error (client-id id code message &optional data)
   "Send error response to CLIENT-ID with ID, CODE, MESSAGE and optional DATA."

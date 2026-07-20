@@ -48,7 +48,7 @@ SCOPE is a string; FILES and DIRECTORY are optional supporting args."
         (catch 'done
           (dolist (file resolved)
             (when (file-exists-p file)
-              (with-current-buffer (find-file-noselect file)
+              (with-current-buffer (mcp-server-emacs-tools-org--open-file file)
                 (org-with-wide-buffer
                  (org-map-entries
                   (lambda ()

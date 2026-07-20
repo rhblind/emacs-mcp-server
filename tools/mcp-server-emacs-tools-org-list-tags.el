@@ -48,7 +48,7 @@ Mirrors `mcp-server-emacs-tools-org-search--scope-files'."
   (let ((counts (make-hash-table :test 'equal)))
     (dolist (file files)
       (when (file-exists-p file)
-        (with-current-buffer (find-file-noselect file)
+        (with-current-buffer (mcp-server-emacs-tools-org--open-file file)
           (org-with-wide-buffer
            (org-map-entries
             (lambda ()
