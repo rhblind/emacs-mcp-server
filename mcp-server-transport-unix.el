@@ -316,6 +316,23 @@
 
 ;;; Transport Implementation
 
+(defun mcp-server-transport-unix--cleanup-stale-sockets ()
+  "Remove stale numbered socket files from the socket directory.
+Performs a liveness test before unlinking; active sockets are never deleted."
+  (let* ((dir (when mcp-server-transport-unix--socket-path
+                (file-name-directory mcp-server-transport-unix--socket-path)))
+         (current (when mcp-server-transport-unix--socket-path
+                    (file-name-nondirectory mcp-server-transport-unix--socket-path))))
+    (when dir
+      (dolist (f (directory-files dir t "^emacs-mcp-server-.*\\.sock$"))
+        (let ((basename (file-name-nondirectory f)))
+          (when (and (not (equal basename current))
+                     (mcp-server-transport-unix--is-socket-stale f))
+            (mcp-server-transport-unix--info "Removing stale socket: %s" f)
+            (condition-case nil
+                (delete-file f)
+              (error nil))))))))
+
 (defun mcp-server-transport-unix--start (message-handler &optional socket-path)
   "Start Unix domain socket server with MESSAGE-HANDLER at optional SOCKET-PATH."
   (when mcp-server-transport-unix--running
@@ -324,7 +341,10 @@
   (setq mcp-server-transport-unix--socket-path 
         (mcp-server-transport-unix--generate-socket-path socket-path))
   
-  ;; Clean up any existing socket file
+  ;; Clean up stale numbered sockets from previous sessions
+  (mcp-server-transport-unix--cleanup-stale-sockets)
+  
+  ;; Clean up any existing socket file matching our path
   (mcp-server-transport-unix--cleanup-socket mcp-server-transport-unix--socket-path)
   
   (setq mcp-server-transport-unix--message-handler message-handler)
@@ -345,6 +365,10 @@
         ;; Set proper permissions on socket file (read/write for owner only, not executable)
         (when (file-exists-p mcp-server-transport-unix--socket-path)
           (set-file-modes mcp-server-transport-unix--socket-path #o600))
+        
+        ;; Register kill-emacs-hook for clean shutdown.
+        ;; add-hook deduplicates, and --stop is idempotent.
+        (add-hook 'kill-emacs-hook #'mcp-server-transport-unix--stop)
         
         (setq mcp-server-transport-unix--running t)
         (mcp-server-transport-unix--info "Unix socket MCP server started at: %s" mcp-server-transport-unix--socket-path))
