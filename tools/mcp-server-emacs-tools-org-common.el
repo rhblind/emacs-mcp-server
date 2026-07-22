@@ -337,22 +337,23 @@ BASE is returned unchanged."
 
 (defvar mcp-server-emacs-tools-org--owned-buffers nil
   "List of buffers opened by the current MCP tool call.
-Each element is (BUFFER . WAS-ALREADY-VISITING).
-Cleaned up by `mcp-server-emacs-tools-org--cleanup-buffers' after each tool call.")
+Only newly opened, clean buffers are tracked; pre-existing buffers
+are not added.  Cleaned up by `mcp-server-emacs-tools-org--cleanup-buffers'
+after each tool call.")
 
 (defun mcp-server-emacs-tools-org--open-file (file)
   "Open FILE with ownership tracking.
 
 Returns a live buffer visiting FILE.  If FILE was already visiting
-a buffer, the existing buffer is reused and will NOT be closed by
-cleanup.  If FILE was not yet visiting, the buffer is recorded in
-`mcp-server-emacs-tools-org--owned-buffers' and will be closed by
-`mcp-server-emacs-tools-org--cleanup-buffers' after the tool call
-completes, provided it remains clean and unmodified."
+a buffer, the existing buffer is reused and will NOT be added to
+`mcp-server-emacs-tools-org--owned-buffers' and will therefore not
+be closed by cleanup.  If FILE was not yet visiting, the buffer is
+appended to the ownership list and will be closed by cleanup after
+the tool call completes, provided it remains clean and unmodified."
   (let* ((was-open (find-buffer-visiting file))
          (buf (find-file-noselect file)))
     (unless was-open
-      (push (cons buf was-open) mcp-server-emacs-tools-org--owned-buffers))
+      (push buf mcp-server-emacs-tools-org--owned-buffers))
     buf))
 
 (defun mcp-server-emacs-tools-org--cleanup-buffers ()
@@ -361,11 +362,10 @@ completes, provided it remains clean and unmodified."
 User-opened buffers (already visiting before the tool call) and
 modified buffers are preserved.  Intended to be called from
 `unwind-protect' in `mcp-server--handle-tools-call'."
-  (dolist (entry mcp-server-emacs-tools-org--owned-buffers)
-    (let ((buf (car entry)))
-      (when (and (buffer-live-p buf)
-                 (not (buffer-modified-p buf)))
-        (kill-buffer buf))))
+  (dolist (buf mcp-server-emacs-tools-org--owned-buffers)
+    (when (and (buffer-live-p buf)
+               (not (buffer-modified-p buf)))
+      (kill-buffer buf)))
   (setq mcp-server-emacs-tools-org--owned-buffers nil))
 
 (provide 'mcp-server-emacs-tools-org-common)

@@ -226,7 +226,7 @@ must never split a multibyte character."
          (buf (mcp-server-emacs-tools-org--open-file tmp-file))
          (owned mcp-server-emacs-tools-org--owned-buffers))
     (unwind-protect
-        (should (assoc buf owned))
+        (should (memq buf owned))
       (when (buffer-live-p buf) (kill-buffer buf))
       (delete-file tmp-file))
     (setq mcp-server-emacs-tools-org--owned-buffers nil)))
@@ -250,7 +250,7 @@ must never split a multibyte character."
   (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
          (buf (find-file-noselect tmp-file)))
     (unwind-protect
-        (let ((mcp-server-emacs-tools-org--owned-buffers `((,buf . nil))))
+        (let ((mcp-server-emacs-tools-org--owned-buffers (list buf)))
           (mcp-server-emacs-tools-org--cleanup-buffers)
           (should-not (buffer-live-p buf)))
       (when (buffer-live-p buf) (kill-buffer buf))
@@ -264,7 +264,7 @@ must never split a multibyte character."
         (progn
           (with-current-buffer buf
             (insert "dirty"))
-          (let ((mcp-server-emacs-tools-org--owned-buffers `((,buf . nil))))
+          (let ((mcp-server-emacs-tools-org--owned-buffers (list buf)))
             (mcp-server-emacs-tools-org--cleanup-buffers)
             (should (buffer-live-p buf))))
       (when (buffer-live-p buf) (kill-buffer buf))
