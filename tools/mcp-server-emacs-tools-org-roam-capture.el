@@ -61,7 +61,7 @@ unset or the ID can't be read from the captured buffer."
           ;; Apply post-capture edits BEFORE syncing the DB so aliases,
           ;; refs, and filetags end up indexed.
           (when (or tags aliases refs)
-            (with-current-buffer (find-file-noselect file)
+            (with-current-buffer (mcp-server-emacs-tools-org--open-file file)
               (save-excursion
                 (goto-char (point-min))
                 (when aliases

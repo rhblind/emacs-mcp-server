@@ -9,6 +9,8 @@
   (when tools-dir (add-to-list 'load-path tools-dir)))
 
 (require 'mcp-server-emacs-tools-org-common)
+(require 'mcp-server)
+(require 'mcp-server-tools)
 
 (ert-deftest mcp-test-org-common-defcustoms-exist ()
   "Config defcustoms are defined with expected defaults."
@@ -215,6 +217,153 @@ must never split a multibyte character."
   ;; Limit 0 returns empty string.
   (should (equal (mcp-server-emacs-tools-org-common--truncate-to-bytes "anything" 0)
                  "")))
+
+;; ─── Temporary buffer ownership tests ───
+
+(ert-deftest mcp-test-org-common-open-file-tracks-new ()
+  "open-file records newly opened buffers for cleanup."
+  (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
+         (buf (mcp-server-emacs-tools-org--open-file tmp-file))
+         (owned mcp-server-emacs-tools-org--owned-buffers))
+    (unwind-protect
+        (should (memq buf owned))
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file tmp-file))
+    (setq mcp-server-emacs-tools-org--owned-buffers nil)))
+
+(ert-deftest mcp-test-org-common-open-file-reuses-existing ()
+  "open-file does NOT track buffers that were already visiting."
+  (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
+         (existing-buf (find-file-noselect tmp-file)))
+    (unwind-protect
+        (let* ((owned-before (length (or mcp-server-emacs-tools-org--owned-buffers '())))
+               (same-buf (mcp-server-emacs-tools-org--open-file tmp-file))
+               (owned-after (length (or mcp-server-emacs-tools-org--owned-buffers '()))))
+          (should (eq same-buf existing-buf))
+          (should (= owned-before owned-after)))
+      (when (buffer-live-p existing-buf) (kill-buffer existing-buf))
+      (delete-file tmp-file))
+    (setq mcp-server-emacs-tools-org--owned-buffers nil)))
+
+(ert-deftest mcp-test-org-common-cleanup-kills-new-clean-buffer ()
+  "cleanup-buffers kills a newly opened clean buffer."
+  (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
+         (buf (find-file-noselect tmp-file)))
+    (unwind-protect
+        (let ((mcp-server-emacs-tools-org--owned-buffers (list buf)))
+          (mcp-server-emacs-tools-org--cleanup-buffers)
+          (should-not (buffer-live-p buf)))
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file tmp-file))))
+
+(ert-deftest mcp-test-org-common-cleanup-preserves-modified ()
+  "cleanup-buffers does NOT kill a modified buffer."
+  (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
+         (buf (find-file-noselect tmp-file)))
+    (unwind-protect
+        (progn
+          (with-current-buffer buf
+            (insert "dirty"))
+          (let ((mcp-server-emacs-tools-org--owned-buffers (list buf)))
+            (mcp-server-emacs-tools-org--cleanup-buffers)
+            (should (buffer-live-p buf))))
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file tmp-file))))
+
+(ert-deftest mcp-test-org-common-cleanup-ignores-unowned ()
+  "cleanup-buffers does not kill buffers it did not open."
+  (let* ((tmp-file (make-temp-file "mcp-test-" nil ".org" "#+TITLE: test\n"))
+         (buf (find-file-noselect tmp-file)))
+    (unwind-protect
+        (progn
+          (mcp-server-emacs-tools-org--cleanup-buffers)
+          (should (buffer-live-p buf)))
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file tmp-file))))
+
+;; ─── Dispatch-level cleanup tests ───
+
+(ert-deftest mcp-test-org-common-dispatch-cleanup-on-success ()
+  "Dispatch cleanup runs after a successful tool call."
+  (let* ((tmp-file (make-temp-file "mcp-dispatch-" nil ".org" "#+TITLE: test\n"))
+         sent-msg)
+    (mcp-server-tools-init)
+    (mcp-server-register-tool
+     (make-mcp-server-tool
+      :name "mcp-test-cleanup-ok"
+      :function (lambda (_args)
+                  (mcp-server-emacs-tools-org--open-file tmp-file)
+                  (vector `((type . "text") (text . "ok"))))))
+    (cl-letf (((symbol-function 'mcp-server-transport-send-raw)
+               (lambda (&rest args) (setq sent-msg args) "mocked"))
+              ((symbol-function 'mcp-server-transport-send)
+               (lambda (&rest args) (setq sent-msg args) "mocked"))
+              (mcp-server-current-transport "unix"))
+      (let ((owned-before (length mcp-server-emacs-tools-org--owned-buffers)))
+        (catch 'mcp-handled
+          (mcp-server--handle-tools-call
+           1 '((name . "mcp-test-cleanup-ok") (arguments)) "test-client"))
+        (let ((owned-after (length mcp-server-emacs-tools-org--owned-buffers)))
+          (should (= owned-after 0))
+          (should-not (find-buffer-visiting tmp-file))
+          (should sent-msg))))
+    (setq mcp-server-emacs-tools-org--owned-buffers nil)))
+
+(ert-deftest mcp-test-org-common-dispatch-cleanup-on-error ()
+  "Dispatch cleanup runs after a tool error, even on throw."
+  (mcp-test-with-mock-server
+   (let* ((tmp-file (make-temp-file "mcp-dispatch-" nil ".org" "#+TITLE: test\n"))
+          (tool-name (concat "test-error-tool-" (format-time-string "%s%N"))))
+     (mcp-server-register-tool
+      (make-mcp-server-tool
+       :name tool-name
+       :function (lambda (_args)
+                   (mcp-server-emacs-tools-org--open-file tmp-file)
+                   (error "simulated tool error"))))
+     (cl-letf (((symbol-function 'mcp-server-transport-send)
+                (lambda (&rest _) "mocked"))
+               (mcp-server-current-transport "unix"))
+       (let ((owned-before (length mcp-server-emacs-tools-org--owned-buffers)))
+         (catch 'mcp-handled
+           (condition-case nil
+               (mcp-server--handle-tools-call
+                1 `((name . ,tool-name) (arguments)) "test-client")
+             (error nil)))
+         (let ((owned-after (length mcp-server-emacs-tools-org--owned-buffers)))
+           (should (= owned-after 0))
+           (should-not (find-buffer-visiting tmp-file)))
+          (setq mcp-server-emacs-tools-org--owned-buffers nil))))))
+
+(ert-deftest mcp-test-org-common-dispatch-preserves-previous-buffer ()
+  "Dispatch cleanup preserves a buffer that was already visiting."
+  (let* ((tmp-file (make-temp-file "mcp-dispatch-" nil ".org" "#+TITLE: test\n"))
+         (prev-buf (find-file-noselect tmp-file))
+         (tool-name (concat "test-open-file-" (format-time-string "%s%N"))))
+    (mcp-test-with-mock-server
+     (mcp-server-register-tool
+      (make-mcp-server-tool
+       :name tool-name
+       :function (lambda (_args)
+                   ;; Open a different file; prev-buf was already open
+                   (mcp-server-emacs-tools-org--open-file tmp-file)
+                   (vector `((type . "text") (text . "ok"))))))
+     (cl-letf (((symbol-function 'mcp-server-transport-send-raw)
+                (lambda (&rest _) "mocked"))
+               ((symbol-function 'mcp-server-transport-send)
+                (lambda (&rest _) "mocked"))
+               (mcp-server-current-transport "unix"))
+       (let ((owned-before (length mcp-server-emacs-tools-org--owned-buffers)))
+         (catch 'mcp-handled
+           (mcp-server--handle-tools-call
+            1 `((name . ,tool-name) (arguments)) "test-client"))
+         (let ((owned-after (length mcp-server-emacs-tools-org--owned-buffers)))
+           (should (= owned-after 0))
+           ;; Pre-existing buffer remains alive and visiting
+           (should (buffer-live-p prev-buf))
+           (should (eq prev-buf (find-buffer-visiting tmp-file))))
+          (setq mcp-server-emacs-tools-org--owned-buffers nil))))
+    (when (buffer-live-p prev-buf) (kill-buffer prev-buf))
+    (delete-file tmp-file)))
 
 (provide 'test-mcp-org-common)
 ;;; test-mcp-org-common.el ends here

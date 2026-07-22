@@ -111,7 +111,7 @@ heading (not a file-level marker) should use
         location))
      ((and file olp)
       (mcp-server-emacs-tools-org-common--validate-path file)
-      (let* ((buf (find-file-noselect file))
+      (let* ((buf (mcp-server-emacs-tools-org--open-file file))
              (path-list (append olp nil)))
         (condition-case err
             (with-current-buffer buf
@@ -120,7 +120,7 @@ heading (not a file-level marker) should use
            (error "Outline path not found in %s: %S" file path-list)))))
      (file
       (mcp-server-emacs-tools-org-common--validate-path file)
-      (let ((buf (find-file-noselect file)))
+      (let ((buf (mcp-server-emacs-tools-org--open-file file)))
         (with-current-buffer buf
           (save-excursion
             (goto-char (point-min))
@@ -332,6 +332,41 @@ BASE is returned unchanged."
    ((and (eq hint-kind 'roam-hint) (featurep 'org-roam))
     (concat base mcp-server-emacs-tools-org-common--roam-hint))
    (t base)))
+
+;; ─── Temporary buffer ownership tracking ───
+
+(defvar mcp-server-emacs-tools-org--owned-buffers nil
+  "List of buffers opened by the current MCP tool call.
+Only newly opened, clean buffers are tracked; pre-existing buffers
+are not added.  Cleaned up by `mcp-server-emacs-tools-org--cleanup-buffers'
+after each tool call.")
+
+(defun mcp-server-emacs-tools-org--open-file (file)
+  "Open FILE with ownership tracking.
+
+Returns a live buffer visiting FILE.  If FILE was already visiting
+a buffer, the existing buffer is reused and will NOT be added to
+`mcp-server-emacs-tools-org--owned-buffers' and will therefore not
+be closed by cleanup.  If FILE was not yet visiting, the buffer is
+appended to the ownership list and will be closed by cleanup after
+the tool call completes, provided it remains clean and unmodified."
+  (let* ((was-open (find-buffer-visiting file))
+         (buf (find-file-noselect file)))
+    (unless was-open
+      (push buf mcp-server-emacs-tools-org--owned-buffers))
+    buf))
+
+(defun mcp-server-emacs-tools-org--cleanup-buffers ()
+  "Kill clean unmodified buffers that were opened by the current tool call.
+
+User-opened buffers (already visiting before the tool call) and
+modified buffers are preserved.  Intended to be called from
+`unwind-protect' in `mcp-server--handle-tools-call'."
+  (dolist (buf mcp-server-emacs-tools-org--owned-buffers)
+    (when (and (buffer-live-p buf)
+               (not (buffer-modified-p buf)))
+      (kill-buffer buf)))
+  (setq mcp-server-emacs-tools-org--owned-buffers nil))
 
 (provide 'mcp-server-emacs-tools-org-common)
 
