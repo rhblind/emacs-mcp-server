@@ -228,7 +228,8 @@ must never split a multibyte character."
     (unwind-protect
         (should (assoc buf owned))
       (when (buffer-live-p buf) (kill-buffer buf))
-      (delete-file tmp-file))))
+      (delete-file tmp-file))
+    (setq mcp-server-emacs-tools-org--owned-buffers nil)))
 
 (ert-deftest mcp-test-org-common-open-file-reuses-existing ()
   "open-file does NOT track buffers that were already visiting."
@@ -241,7 +242,8 @@ must never split a multibyte character."
           (should (eq same-buf existing-buf))
           (should (= owned-before owned-after)))
       (when (buffer-live-p existing-buf) (kill-buffer existing-buf))
-      (delete-file tmp-file))))
+      (delete-file tmp-file))
+    (setq mcp-server-emacs-tools-org--owned-buffers nil)))
 
 (ert-deftest mcp-test-org-common-cleanup-kills-new-clean-buffer ()
   "cleanup-buffers kills a newly opened clean buffer."
@@ -304,7 +306,8 @@ must never split a multibyte character."
         (let ((owned-after (length mcp-server-emacs-tools-org--owned-buffers)))
           (should (= owned-after 0))
           (should-not (find-buffer-visiting tmp-file))
-          (should sent-msg))))))
+          (should sent-msg))))
+    (setq mcp-server-emacs-tools-org--owned-buffers nil)))
 
 (ert-deftest mcp-test-org-common-dispatch-cleanup-on-error ()
   "Dispatch cleanup runs after a tool error, even on throw."
@@ -328,7 +331,8 @@ must never split a multibyte character."
              (error nil)))
          (let ((owned-after (length mcp-server-emacs-tools-org--owned-buffers)))
            (should (= owned-after 0))
-           (should-not (find-buffer-visiting tmp-file))))))))
+           (should-not (find-buffer-visiting tmp-file)))
+          (setq mcp-server-emacs-tools-org--owned-buffers nil))))))
 
 (ert-deftest mcp-test-org-common-dispatch-preserves-previous-buffer ()
   "Dispatch cleanup preserves a buffer that was already visiting."
@@ -356,7 +360,8 @@ must never split a multibyte character."
            (should (= owned-after 0))
            ;; Pre-existing buffer remains alive and visiting
            (should (buffer-live-p prev-buf))
-           (should (eq prev-buf (find-buffer-visiting tmp-file)))))))
+           (should (eq prev-buf (find-buffer-visiting tmp-file))))
+          (setq mcp-server-emacs-tools-org--owned-buffers nil))))
     (when (buffer-live-p prev-buf) (kill-buffer prev-buf))
     (delete-file tmp-file)))
 
