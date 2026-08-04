@@ -261,6 +261,8 @@
     (set-process-filter client-process #'mcp-server-transport-unix--client-filter)
     (set-process-sentinel client-process #'mcp-server-transport-unix--client-sentinel)
     (set-process-coding-system client-process 'utf-8 'utf-8)
+    ;; Don't prompt about this connection when Emacs exits.
+    (set-process-query-on-exit-flag client-process nil)
     
     ;; Add to client table
     (mcp-server-transport-unix--add-client client-id client-process)
@@ -341,7 +343,11 @@
                :filter #'mcp-server-transport-unix--server-filter
                :sentinel #'mcp-server-transport-unix--server-sentinel
                :coding 'utf-8))
-        
+
+        ;; Don't prompt about this process when Emacs exits; the server should
+        ;; be torn down unconditionally on shutdown.
+        (set-process-query-on-exit-flag mcp-server-transport-unix--server-process nil)
+
         ;; Set proper permissions on socket file (read/write for owner only, not executable)
         (when (file-exists-p mcp-server-transport-unix--socket-path)
           (set-file-modes mcp-server-transport-unix--socket-path #o600))
