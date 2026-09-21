@@ -67,7 +67,7 @@ Alternatively, use package managers:
 
 ```bash
 claude mcp add emacs -- socat - UNIX-CONNECT:$HOME/.config/emacs/.local/cache/emacs-mcp-server.sock  # Uses socat directly
-claude mcp add emacs ~/path-to/mcp-wrapper.py ~/.config/emacs/.local/cache/emacs-mcp-server.sock     # Uses the python wrapper script
+claude mcp add emacs ~/path-to/mcp-wrapper.py     # Uses the python wrapper script (auto-discovers socket)
 claude mcp add emacs ~/path-to/mcp-wrapper.sh ~/.config/emacs/.local/cache/emacs-mcp-server.sock     # Uses the bash wrapper script
 
 # Optionally, add to user scope so it's always available
@@ -414,13 +414,13 @@ Operations requiring explicit permission include file system operations (`delete
 }
 ```
 
-**Using Python wrapper:**
+**Using Python wrapper (lazy bridge, stays up without Emacs):**
 ```json
 {
   "mcpServers": {
     "emacs": {
       "command": "python3",
-      "args": ["/path/to/mcp-wrapper.py", "$HOME/.emacs.d/.local/cache/emacs-mcp-server.sock"],
+      "args": ["/path/to/mcp-wrapper.py"],
       "transport": "stdio"
     }
   }
@@ -449,11 +449,14 @@ Operations requiring explicit permission include file system operations (`delete
 EMACS_MCP_DEBUG=1 ./mcp-wrapper.sh ~/.emacs.d/.local/cache/emacs-mcp-server.sock
 ```
 
-**Python wrapper (`mcp-wrapper.py`)** - More robust error handling, better cross-platform support:
+**Python wrapper (`mcp-wrapper.py`)** - Lazy bridge with manual connect. Stays alive when Emacs is down:
 ```bash
-./mcp-wrapper.py ~/.emacs.d/.local/cache/emacs-mcp-server.sock
+./mcp-wrapper.py                                        # auto-discover socket, start detached
+./mcp-wrapper.py ~/.emacs.d/.local/cache/emacs-mcp-server.sock  # explicit target, connects at startup
+./mcp-wrapper.py --connect auto                         # connect at startup when a live socket exists
 ./mcp-wrapper.py --list-sockets
-EMACS_MCP_DEBUG=1 ./mcp-wrapper.py ~/.emacs.d/.local/cache/emacs-mcp-server.sock
+./mcp-wrapper.py --test-connection
+EMACS_MCP_DEBUG=1 ./mcp-wrapper.py
 ```
 
 **Environment variables** for both wrappers:
@@ -542,7 +545,7 @@ The tool will self-register when loaded. Use `mcp-server-emacs-tools-enabled` to
 **Socket not found:**
 - Check if Emacs MCP Server is running: `M-x mcp-server-status`
 - Verify socket path: `M-x mcp-server-get-socket-path` 
-- List available sockets: `./mcp-wrapper.sh --list-sockets`
+- List available sockets: `./mcp-wrapper.sh --list-sockets` or `./mcp-wrapper.py --list-sockets`
 
 **Connection refused:**
 - Check socket permissions: `ls -la ~/.emacs.d/.local/cache/emacs-mcp-server*.sock`
