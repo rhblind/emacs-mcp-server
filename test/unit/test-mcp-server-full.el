@@ -149,5 +149,20 @@ not found) which is the correct response."
           (should-not mcp-server-debug))
       (setq mcp-server-debug original-debug))))
 
+(ert-deftest mcp-test-unix-server-process-query-on-exit-cleared ()
+  "Unix server process must not block Emacs exit.
+The server is a persistent network process; leaving its
+query-on-exit flag set makes Emacs prompt about \"active processes\"
+on shutdown. Starting the server must clear that flag so it is torn
+down unconditionally."
+  (require 'mcp-server-transport-unix)
+  (unwind-protect
+      (progn
+        (mcp-server-start-unix)
+        (should (processp mcp-server-transport-unix--server-process))
+        (should-not
+         (process-query-on-exit-flag mcp-server-transport-unix--server-process)))
+    (mcp-server-stop)))
+
 (provide 'test-mcp-server-full)
 ;;; test-mcp-server-full.el ends here
